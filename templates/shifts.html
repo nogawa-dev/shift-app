@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>シフト一覧 - 塾配布シフト</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa;}
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);}
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .nav-btn { color: #343a40; background: #e2e6ea; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold;}
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
+        th { background-color: #e9ecef; color: #495057; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        .status-pending { color: #856404; background-color: #fff3cd; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .status-confirmed { color: #155724; background-color: #d4edda; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .approve-btn { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;}
+        .approve-btn:hover { background: #218838; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
+            <span style="white-space: nowrap;">
+                👤 <b>{{ user_name }}</b> さんがログイン中
+                {% if role == 'admin' %}<span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold; white-space: nowrap;">管理者</span>{% endif %}
+            </span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
+                
+                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
+                
+                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
+            </div>
+        </div>
+
+        <h2>📋 提出済みシフト一覧</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>送信日時</th>
+                    <th>ユーザー名</th>
+                    <th>シフト希望日</th>
+                    <th>希望時間帯</th>
+                    {% if role == 'admin' %}
+                        <th>状態</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in shifts %}
+                <tr>
+                    <td>{{ row[0] }}</td>
+                    <td><b>{{ row[1] }}</b></td>
+                    <td>{{ row[2] }}</td>
+                    <td>{{ row[3] }}</td>
+                    {% if role == 'admin' %}
+                        <td>
+                            {% if row[5] == '未確定' %}
+                                <span class="status-pending">未確定</span>
+                            {% else %}
+                                <span class="status-confirmed">{{ row[5] }}</span>
+                            {% endif %}
+                        </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

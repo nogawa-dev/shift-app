@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>塾配布シフト管理</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa;}
+        .container{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);}
+        .header-bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
+        
+        /* 🌟 ボタン風のチェックボックスデザイン */
+        .slot-btn { display: inline-block; padding: 8px 12px; margin: 3px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px; background: #f8f9fa; transition: 0.2s;}
+        .slot-btn:hover { background: #e2e6ea; }
+        .slot-btn.active { background: #007bff; color: white; border-color: #0056b3; font-weight: bold;}
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        th { background-color: #e9ecef; color: #495057; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-bar">
+            <span style="white-space: nowrap;">
+                👤 <b>{{ user_name }}</b> さんがログイン中
+                {% if role == 'admin' %}<span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold; white-space: nowrap;">管理者</span>{% endif %}
+            </span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
+                {% if role == 'admin' %}
+                    <a href="/shifts" style="color: white; background: #28a745; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📋 シフト一覧</a>
+                {% endif %}
+                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
+            </div>
+        </div>
+
+        <h2>📝 シフト一括入力</h2>
+        <p>希望する日付の時間帯をクリックして、最後に一番下の「一括送信」を押してください。</p>
+
+        <div id="bulk-input-area">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 130px; text-align: center;">日付</th>
+                        <th>希望時間帯（複数選択可）</th>
+                    </tr>
+                </thead>
+                <tbody id="shift-tbody">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="submit-area" style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;">
+            <p>補足メモ</p>
+            <textarea id="bulk-memo" rows="3" style="width: 100%; border-radius: 5px; padding: 10px; box-sizing: border-box;"></textarea>
+            
+            <button onclick="sendBulkData()" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px;">
+                📤 送信する
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let selectedShifts = {}; // 選んだシフトを貯めておく箱
+
+        // 🌟 画面が開いた瞬間に実行される処理
+        document.addEventListener('DOMContentLoaded', function() {
+            const tbody = document.getElementById('shift-tbody');
+            const today = new Date();
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+            // 今日から14日分（2週間分）の行を自動で作る！
+            for (let i = 0; i < 30; i++) {
+                let d = new Date(today);
+                d.setDate(today.getDate() + i);
+                
+                let yyyy = d.getFullYear();
+                let mm = String(d.getMonth() + 1).padStart(2, '0');
+                let dd = String(d.getDate()).padStart(2, '0');
+                let dateStr = `${yyyy}-${mm}-${dd}`;
+                let dayStr = dayNames[d.getDay()]; // 曜日を取得
+
+                selectedShifts[dateStr] = []; // 箱を準備
+
+                const row = document.createElement('tr');
+                
+                // 日曜は赤、土曜は青にすると見やすい！
+                let color = "black";
+                if (dayStr === '日') color = "red";
+                if (dayStr === '土') color = "blue";
+
+                row.innerHTML = `
+                    <td style="text-align: center; color: ${color};"><b>${mm}/${dd} (${dayStr})</b></td>
+                    <td>
+                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '1. 7:30-8:30', this)">7:30-8:30</span>
+                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '2. 8:00-9:00', this)">8:00-9:00</span>
+                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '3. 15:30-16:30', this)">15:30-16:30</span>
+                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '4. 17:30-18:30', this)">17:30-18:30</span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            }
+        });
+
+        // 🌟 ボタンを押した時の処理（色を変えて箱に入れる/出す）
+        function toggleSlot(date, slot, el) {
+            if (selectedShifts[date].includes(slot)) {
+                // すでに入っていたら取り出す（キャンセル）
+                selectedShifts[date] = selectedShifts[date].filter(s => s !== slot);
+                el.classList.remove('active');
+            } else {
+                // 入っていなかったら箱に入れる（選択）
+                selectedShifts[date].push(slot);
+                el.classList.add('active');
+            }
+        }
+
+        // 🌟 一括送信ボタンを押した時の処理
+        async function sendBulkData() {
+            // 空っぽの日付を除外して、本当に選ばれたデータだけをまとめる
+            const shiftsToSend = {};
+            for (const [date, slots] of Object.entries(selectedShifts)) {
+                if (slots.length > 0) {
+                    shiftsToSend[date] = slots;
+                }
+            }
+
+            // 1つも選ばれていなかったらストップ
+            if (Object.keys(shiftsToSend).length === 0) {
+                alert("シフトが1つも選択されていません！");
+                return;
+            }
+
+            const memo = document.getElementById('bulk-memo').value;
+            
+            // さっき作ったPythonの /submit_bulk にデータを飛ばす！
+            const response = await fetch('/submit_bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shifts: shiftsToSend, memo: memo })
+            });
+            
+            if (response.ok) {
+                alert('一括送信が完了しました！');
+                window.location.href = '/calendar'; // カレンダーに移動
+            } else {
+                alert('送信に失敗しました。');
+            }
+        }
+    </script>
+</body>
+</html>
