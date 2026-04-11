@@ -2,23 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>シフトカレンダー - 塾配布シフト</title>
+    <title>カレンダー</title>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa;}
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);}
-        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
-        .nav-btn { color: white; background: #6c757d; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; margin-left: 10px;}
-        .nav-btn:hover { background: #5a6268; }
-        
-        /* カレンダーの見た目調整 */
-        #calendar { max-width: 100%; margin: 0 auto; font-size: 14px;}
-        .fc-event-title {
-            font-size: 0.85em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        #calendar { max-width: 100%; margin: 0 auto; font-family: sans-serif; }
     </style>
 </head>
 <body>
@@ -33,53 +22,49 @@
                 {% endif %}
             </span>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                
                 <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
-                
                 {% if role in ['owner', 'admin'] %}
-                    <a href="/shifts" style="color: white; background: #28a745; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📋 シフト一覧</a>
                     <a href="/settings" style="color: white; background: #6c757d; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">⚙️ 募集設定</a>
                 {% endif %}
-
                 {% if role == 'owner' %}
                     <a href="/register_users" style="color: white; background: #fd7e14; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">👤 ユーザー登録</a>
                 {% endif %}
-                
                 <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
             </div>
         </div>
 
-        <h2>📅 確定シフトカレンダー</h2>
-        
         <div id='calendar'></div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
-            // Jinja2（Python）から、今のユーザーが管理者かどうかをJavaScriptに渡す
+            // Jinja2から権限をJavaScriptに渡す
             var currentRole = "{{ role }}"; 
 
             var calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'ja',
-                events: '/api/shifts', // ここでAPIを呼ぶ
+                events: '/api/shifts',
                 displayEventTime: false,
                 
-                // 🌟 ここ！クリックした時の処理をしっかり紐づける
+                // 🌟 クリックした時の処理（ひろの元コードをベースにID送信へ変更）
                 eventClick: function(info) {
                     var status = info.event.extendedProps.status;
-                    var rowIndex = info.event.extendedProps.index;
+                    var shiftId = info.event.extendedProps.id; // DBのIDを取得
 
-                    if (currentRole === 'admin' && status === 'pending') {
+                    // オーナーか管理者なら、クリックで承認ダイアログを出す
+                    if ((currentRole === 'owner' || currentRole === 'admin') && status === 'pending') {
                         if (confirm(info.event.title + " を確定にしますか？")) {
                             var form = document.createElement('form');
                             form.method = 'POST';
                             form.action = '/approve';
+                            
                             var input = document.createElement('input');
                             input.type = 'hidden';
-                            input.name = 'row_index';
-                            input.value = rowIndex;
+                            input.name = 'shift_id';
+                            input.value = shiftId;
+                            
                             form.appendChild(input);
                             document.body.appendChild(form);
                             form.submit();
