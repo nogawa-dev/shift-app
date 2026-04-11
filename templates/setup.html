@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>初期設定</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f8f9fa; margin: 0;}
+        .setup-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 320px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; font-size: 16px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="setup-box">
+        <h2 style="text-align: center; margin-top: 0;">🛠️ 初期設定</h2>
+        <p style="font-size: 13px; color: #555; line-height: 1.5;">
+            セキュリティのため、最初に「カレンダー表示名（名字）」の登録と、管理者から渡された「初期パスワード」の変更をお願いします。
+        </p>
+        
+        <form method="POST">
+            <label style="font-size: 14px; font-weight: bold;">👤 カレンダー表示名（名字）</label>
+            <input type="text" name="last_name" placeholder="例：田中" required>
+
+            <label style="font-size: 14px; font-weight: bold; margin-top: 10px; display: block;">🔑 新しいパスワード</label>
+            <input type="password" name="password" placeholder="あなただけのパスワードを入力" required>
+
+            <button type="submit">設定を完了して進む</button>
+        </form>
+    </div>
+</body>
+</html>

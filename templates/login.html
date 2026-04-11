@@ -21,10 +21,15 @@
         {% endif %}
         
         <form method="POST">
-            <input type="text" name="username" placeholder="ユーザーID (例: hiro)" required>
-            <input type="password" name="password" placeholder="パスワード (例: 1234)" required>
+            <input type="text" name="username" placeholder="ログインID" required>
+            <input type="password" name="password" placeholder="パスワード" required>
             <button type="submit">ログインする</button>
         </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/forgot_password" style="color: #007bff; font-size: 14px; text-decoration: none;">パスワードを忘れた方はこちら</a>
+        </div>
+        
     </div>
 </body>
 </html>

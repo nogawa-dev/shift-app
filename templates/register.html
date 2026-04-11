@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ユーザー登録管理</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px;">
+            <span style="white-space: nowrap;">
+                👤 <b>{{ user_name }}</b> さんがログイン中
+                {% if role == 'owner' %}
+                    <span style="background: #e91e63; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">👑 オーナー</span>
+                {% elif role == 'admin' %}
+                    <span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">🛡️ 管理者</span>
+                {% endif %}
+            </span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                
+                <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
+
+                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
+                
+                {% if role in ['owner', 'admin'] %}
+                    <a href="/shifts" style="color: white; background: #28a745; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📋 シフト一覧</a>
+                {% endif %}
+
+                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
+            </div>
+        </div>
+
+        <h2>👤 新規ユーザー登録（オーナー専用）</h2>
+        <p>新しいスタッフのログインIDと初期パスワードを発行します。登録されたスタッフは初回ログイン時に名前とパスワードの再設定を求められます。</p>
+
+        <div style="margin-top: 20px; padding: 20px; background: #f1f3f5; border-radius: 8px;">
+            <h3 style="margin-top: 40px; border-bottom: 2px solid #ddd; padding-bottom: 10px;">🔄 登録済みユーザーの権限管理</h3>
+        <div style="background: white; border-radius: 8px; border: 1px solid #ddd; overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background: #e9ecef; font-size: 14px;">
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">ログインID</th>
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">カレンダー表示名</th>
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">現在の権限</th>
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">権限の変更</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for uid, uinfo in users.items() %}
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px; font-weight: bold;">{{ uid }}</td>
+                        <td style="padding: 12px;">{{ uinfo.last_name if uinfo.last_name else '（未設定）' }}</td>
+                        <td style="padding: 12px;">
+                            {% if uinfo.role == 'owner' %}👑 オーナー
+                            {% elif uinfo.role == 'admin' %}🛡️ 管理者
+                            {% else %}👤 一般ユーザー{% endif %}
+                        </td>
+                        <td style="padding: 12px;">
+                            {% if uinfo.role != 'owner' %}
+                                <select id="role-{{ uid }}" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                                    <option value="user" {% if uinfo.role == 'user' %}selected{% endif %}>一般ユーザー</option>
+                                    <option value="admin" {% if uinfo.role == 'admin' %}selected{% endif %}>管理者</option>
+                                </select>
+                                <button onclick="updateRole('{{ uid }}')" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">変更</button>
+                            {% else %}
+                                <span style="color: #999; font-size: 13px;">変更不可</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+        // --- すでに書いている registerUser() 関数はそのまま残し、その下に以下を追加 ---
+
+        async function updateRole(username) {
+            const selectElement = document.getElementById(`role-${username}`);
+            const newRole = selectElement.value;
+
+            if(!confirm(`${username} さんの権限を変更してもよろしいですか？`)) return;
+
+            const response = await fetch('/admin/update_role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username, role: newRole })
+            });
+
+            if (response.ok) {
+                alert('権限を更新しました！');
+                location.reload(); // 画面を更新して最新の状態を読み込む
+            } else {
+                alert('更新に失敗しました。');
+            }
+        }
+        </script>
+            <div style="display: flex; flex-direction: column; gap: 15px; max-width: 400px;">
+                <input type="text" id="new-username" placeholder="希望のログインID（半角英数）" style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+                <input type="text" id="new-password" placeholder="初期パスワード（4桁など）" style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+                <select id="new-role" style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="user">一般ユーザー（シフト提出のみ）</option>
+                    <option value="admin">管理者（シフトの確定が可能）</option>
+                    </select>
+                <button onclick="registerUser()" style="background: #fd7e14; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">ユーザーを発行する</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    async function registerUser() {
+        const username = document.getElementById('new-username').value;
+        const password = document.getElementById('new-password').value;
+        const role = document.getElementById('new-role').value;
+
+        if(!username || !password) return alert("IDとパスワードを入力してください！");
+
+        const response = await fetch('/admin/add_user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
+        });
+
+        if (response.ok) {
+            alert(username + ' を登録しました！スタッフにIDと初期パスワードを伝えてください。');
+            location.reload();
+        } else {
+            alert('登録に失敗しました。');
+        }
+    }
+    </script>
+</body>
+</html>

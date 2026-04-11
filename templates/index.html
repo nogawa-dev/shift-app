@@ -21,17 +21,28 @@
 </head>
 <body>
     <div class="container">
-        <div class="header-bar">
+        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px;">
             <span style="white-space: nowrap;">
                 👤 <b>{{ user_name }}</b> さんがログイン中
-                {% if role == 'admin' %}<span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold; white-space: nowrap;">管理者</span>{% endif %}
+                {% if role == 'owner' %}
+                    <span style="background: #e91e63; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">👑 オーナー</span>
+                {% elif role == 'admin' %}
+                    <span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">🛡️ 管理者</span>
+                {% endif %}
             </span>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
-                {% if role == 'admin' %}
-                    <a href="/shifts" style="color: white; background: #28a745; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📋 シフト一覧</a>
+                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
+                
+                {% if role in ['owner', 'admin'] %}
+                    <a href="/shifts" style="color: white; background: #28a745; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📋 シフト一覧</a>
+                    <a href="/settings" style="color: white; background: #6c757d; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">⚙️ 募集設定</a>
                 {% endif %}
-                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
+
+                {% if role == 'owner' %}
+                    <a href="/register_users" style="color: white; background: #fd7e14; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">👤 ユーザー登録</a>
+                {% endif %}
+                
+                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
             </div>
         </div>
 
@@ -65,33 +76,35 @@
         let selectedShifts = {}; // 選んだシフトを貯めておく箱
 
         // 🌟 画面が開いた瞬間に実行される処理
+        // 🌟 Flaskから渡された「募集中の日付リスト」をJavaScriptで受け取る！
+        const validDates = JSON.parse('{{ valid_dates | tojson | safe }}');
+        // 🌟 画面が開いた瞬間に実行される処理
         document.addEventListener('DOMContentLoaded', function() {
             const tbody = document.getElementById('shift-tbody');
-            const today = new Date();
             const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
-            // 今日から14日分（2週間分）の行を自動で作る！
-            for (let i = 0; i < 30; i++) {
-                let d = new Date(today);
-                d.setDate(today.getDate() + i);
-                
-                let yyyy = d.getFullYear();
+            // 募集期間が設定されていない（空っぽ）の場合の処理
+            if (!validDates || validDates.length === 0) {
+                document.getElementById('bulk-input-area').innerHTML = 
+                    '<div style="background: #ffeeba; color: #856404; padding: 20px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 16px;">現在、シフトの募集は行われていません。<br>管理者の設定をお待ちください。</div>';
+                document.getElementById('submit-area').style.display = 'none'; // 送信ボタンも隠す
+                return;
+            }
+
+            // 🌟 30日分ループするのではなく、Flaskから来た「指定日」だけループする！
+            validDates.forEach(dateStr => {
+                selectedShifts[dateStr] = []; // 箱を準備
+
+                // dateStr は "2026-04-20" のような形なので、分解して表示用にする
+                let d = new Date(dateStr);
                 let mm = String(d.getMonth() + 1).padStart(2, '0');
                 let dd = String(d.getDate()).padStart(2, '0');
-                let dateStr = `${yyyy}-${mm}-${dd}`;
-                let dayStr = dayNames[d.getDay()]; // 曜日を取得
-
-                selectedShifts[dateStr] = []; // 箱を準備
+                let dayStr = dayNames[d.getDay()];
 
                 const row = document.createElement('tr');
                 
-                // 日曜は赤、土曜は青にすると見やすい！
-                let color = "black";
-                if (dayStr === '日') color = "red";
-                if (dayStr === '土') color = "blue";
-
                 row.innerHTML = `
-                    <td style="text-align: center; color: ${color};"><b>${mm}/${dd} (${dayStr})</b></td>
+                    <td style="text-align: center;"><b>${mm}/${dd} (${dayStr})</b></td>
                     <td>
                         <span class="slot-btn" onclick="toggleSlot('${dateStr}', '1. 7:30-8:30', this)">7:30-8:30</span>
                         <span class="slot-btn" onclick="toggleSlot('${dateStr}', '2. 8:00-9:00', this)">8:00-9:00</span>
@@ -100,7 +113,7 @@
                     </td>
                 `;
                 tbody.appendChild(row);
-            }
+            });
         });
 
         // 🌟 ボタンを押した時の処理（色を変えて箱に入れる/出す）

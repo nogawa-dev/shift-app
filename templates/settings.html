@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>シフト募集設定</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        input[type="date"] { padding: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>⚙️ シフト募集期間の設定</h2>
+        <p>スタッフに入力させたい期間を選んでください。<br>
+        <b>※土日と祝日は自動的に除外されて、平日のみがスタッフの入力画面に表示されます。</b></p>
+
+        {% if success %}
+            <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-weight: bold;">{{ success }}</div>
+        {% endif %}
+
+        <div style="background: #e9ecef; padding: 20px; border-radius: 8px; margin-top: 20px;">
+            <form method="POST" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">開始日</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <span style="font-size: 20px; font-weight: bold; margin-top: 25px;">〜</span>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">終了日</label>
+                    <input type="date" name="end_date" required>
+                </div>
+                <button type="submit" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 25px;">この期間で募集する</button>
+            </form>
+        </div>
+
+        <h3 style="margin-top: 40px;">📅 現在募集中の日程（全 {{ valid_dates|length }} 日）</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            {% for date in valid_dates %}
+                <span style="background: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;">{{ date }}</span>
+            {% else %}
+                <span style="color: #dc3545; font-weight: bold;">現在、募集している日程はありません。</span>
+            {% endfor %}
+        </div>
+        <div style="margin-top: 40px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+            <a href="/" style="color: #495057; text-decoration: none; font-weight: bold; background: #e9ecef; padding: 10px 25px; border-radius: 4px; display: inline-block; transition: 0.2s;">← 入力画面に戻る</a>
+            
+            <a href="/calendar" style="color: white; text-decoration: none; font-weight: bold; background: #6c757d; padding: 10px 25px; border-radius: 4px; display: inline-block; transition: 0.2s;">📅 カレンダーに戻る</a>
+        </div>
+        </div>
+    </body>
+</html>

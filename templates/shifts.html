@@ -21,17 +21,30 @@
 </head>
 <body>
     <div class="container">
-        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
+        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px;">
             <span style="white-space: nowrap;">
                 👤 <b>{{ user_name }}</b> さんがログイン中
-                {% if role == 'admin' %}<span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold; white-space: nowrap;">管理者</span>{% endif %}
+                {% if role == 'owner' %}
+                    <span style="background: #e91e63; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">👑 オーナー</span>
+                {% elif role == 'admin' %}
+                    <span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">🛡️ 管理者</span>
+                {% endif %}
             </span>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
                 
-                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
+                <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
+
+                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
                 
-                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 5px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
+                {% if role in ['owner', 'admin'] %}
+                    <a href="/settings" style="color: white; background: #6c757d; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">⚙️ 募集設定</a>
+                {% endif %}
+
+                {% if role == 'owner' %}
+                    <a href="/register_users" style="color: white; background: #fd7e14; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">👤 ユーザー登録</a>
+                {% endif %}
+                
+                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
             </div>
         </div>
 

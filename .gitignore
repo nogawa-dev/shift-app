@@ -4,3 +4,4 @@ venv/
 env/
 .env
 shift_data.csv
+users.csv
