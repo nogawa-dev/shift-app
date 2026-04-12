@@ -8,6 +8,32 @@
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        /* 🌟 ここから下が「スマホ専用」のデザイン設定（画面幅が600px以下の時だけ発動する魔法） */
+        /* 🌟 スマホ用：表のレイアウト崩れ（縦書き化）を防ぐ魔法 */
+        @media screen and (max-width: 600px) {
+            /* 1. テーブルの文字を絶対に改行させない */
+            th, td {
+                white-space: nowrap !important;
+                padding: 10px 8px !important;
+                font-size: 14px !important;
+            }
+            
+            /* 2. ボタンやプルダウンが縦に潰れないように調整 */
+            td select, td button {
+                display: inline-block !important;
+                margin-bottom: 4px;
+                font-size: 13px !important;
+                padding: 6px 10px !important;
+            }
+        }
+
+        /* 🌟 表を横スクロール可能にする設定（メディアクエリの外に書く） */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* iPhoneで滑らかにスクロールさせる */
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -36,6 +62,7 @@
             
             <h3 style="margin-top: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px;">🔄 登録済みユーザーの権限管理</h3>
             <div style="background: white; border-radius: 8px; border: 1px solid #ddd; overflow: hidden; margin-bottom: 40px;">
+                <div class="table-responsive">
                 <table style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead>
                         <tr style="background: #e9ecef; font-size: 14px;">
@@ -62,6 +89,7 @@
                                     <option value="admin" {% if uinfo.role == 'admin' %}selected{% endif %}>管理者</option>
                                 </select>
                                 <button onclick="updateRole('{{ uid }}')" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">変更</button>
+                                <button onclick="changeUserId('{{ uid }}')" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">ID変更</button>
                                 <button onclick="deleteUser('{{ uid }}')" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">削除</button>
                                 {% else %}
                                     <span style="color: #999; font-size: 13px;">変更不可</span>
@@ -71,6 +99,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <script>
@@ -160,6 +189,56 @@
                         }
                     }
                 });
+            }
+            // 🌟 追加：ID変更のポップアップと裏側への送信処理
+            async function changeUserId(oldUsername) {
+                const { value: newUsername } = await Swal.fire({
+                    title: 'ログインIDの変更',
+                    text: `${oldUsername} さんの新しいIDを入力してください`,
+                    input: 'text',
+                    inputPlaceholder: '新しい半角英数ID',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745', 
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '変更する',
+                    cancelButtonText: 'キャンセル',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return '新しいIDを入力してください！';
+                        }
+                        if (!/^[a-zA-Z0-9]+$/.test(value)) {
+                            return 'IDは半角英数字のみにしてください！';
+                        }
+                    }
+                });
+
+                if (newUsername) {
+                    const response = await fetch('/admin/change_userid', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_username: oldUsername, new_username: newUsername })
+                    });
+
+                    const resData = await response.json();
+
+                    if (response.ok && resData.status === 'success') {
+                        Swal.fire({
+                            title: '変更完了',
+                            text: 'ログインIDを新しいものに変更しました。',
+                            icon: 'success',
+                            confirmButtonColor: '#343a40'
+                        }).then(() => {
+                            location.reload(); 
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'エラー',
+                            text: resData.message || '変更に失敗しました。',
+                            icon: 'error',
+                            confirmButtonColor: '#343a40'
+                        });
+                    }
+                }
             }
             </script>
 

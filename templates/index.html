@@ -19,6 +19,28 @@
         th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
         th { background-color: #e9ecef; color: #495057; }
         tr:nth-child(even) { background-color: #f8f9fa; }
+        /* 🌟 ここから下が「スマホ専用」のデザイン設定（画面幅が600px以下の時だけ発動する魔法） */
+        @media screen and (max-width: 600px) {
+            
+            /* 例1：全体の余白を少し狭くして、画面を広く使う */
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            
+            /* 例2：シフト入力のボタン（.slot-btn）を押しやすいように大きくする！ */
+            .slot-btn {
+                display: block; /* 横並びから縦並びに変えたい場合はこれ */
+                width: 100%;    /* 画面幅いっぱいのボタンにする */
+                padding: 8px 10px imo !important;  /* 指で押しやすいように余白を大きく */
+                margin: 2px 0 !important; /* ボタン同士の隙間をあける */
+                font-size: 14px; /* 文字を少し大きく */
+                box-sizing: border-box;
+                line-height: 1.2 !important;
+            }
+
+            /* 例3：カレンダーの文字サイズを調整する */
+            table { font-size: 13px; }
+            th, td { padding: 8px; }
+        }
     </style>
 </head>
 <body>

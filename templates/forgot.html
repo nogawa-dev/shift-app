@@ -27,12 +27,12 @@
 
         {% if not success %}
         <p style="font-size: 13px; color: #555; line-height: 1.5;">
-            本人確認のため、登録している「ログインID」と「カレンダー表示名（名字）」を入力してください。
+            本人確認のため、登録している「ログインID」と「名字」を入力してください。
         </p>
         
         <form method="POST">
             <input type="text" name="username" placeholder="ログインID" required>
-            <input type="text" name="last_name" placeholder="カレンダー表示名（例：田中）" required>
+            <input type="text" name="last_name" placeholder="名字" required>
             <input type="password" name="new_password" placeholder="新しいパスワード" required>
             <button type="submit">パスワードをリセット</button>
         </form>

@@ -330,6 +330,28 @@ def update_role():
         
     return jsonify({"status": "error"}), 400
 
+# 🌟 追加：ユーザーID（ログインID）を変更する機能（オーナー専用）
+@app.route('/admin/change_userid', methods=['POST'])
+def change_userid():
+    if session.get('role') != 'owner':
+        return jsonify({"status": "error", "message": "権限がありません"}), 403
+        
+    old_username = request.json.get('old_username')
+    new_username = request.json.get('new_username')
+
+    # 1. 新しいIDが、すでに他の人に使われていないかチェック！
+    check_res = requests.get(f"{SUPABASE_URL}/rest/v1/users?username=eq.{new_username}", headers=get_headers())
+    if check_res.status_code == 200 and check_res.json():
+        return jsonify({"status": "error", "message": "そのIDはすでに使われています！別のIDにしてください。"}), 400
+
+    # 2. SupabaseのIDを新しいものに書き換える（PATCH）
+    res = requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{old_username}", headers=get_headers(), json={'username': new_username})
+    
+    if res.status_code in [200, 204]:
+        return jsonify({"status": "success"})
+    else:
+        print("❌ Supabaseエラー:", res.text) 
+        return jsonify({"status": "error", "message": "変更に失敗しました。（シフトが紐づいている可能性があります）"}), 500
 
 # 🌟 登録済みユーザーを削除する機能（オーナー専用）
 @app.route('/admin/delete_user', methods=['POST'])

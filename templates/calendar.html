@@ -17,6 +17,43 @@
         .tab-btn:hover { background: #ced4da; }
         .tab-btn.active { background: #007bff; color: white; box-shadow: 0 2px 5px rgba(0,123,255,0.3);}
         .tab-btn.active-green { background: #28a745; color: white; box-shadow: 0 2px 5px rgba(40,167,69,0.3);}
+        /* 🌟 ここから下が「スマホ専用」のデザイン設定（画面幅が600px以下の時だけ発動する魔法） */
+        @media screen and (max-width: 600px) {
+            
+            /* 例1：全体の余白を少し狭くして、画面を広く使う */
+            body { padding: 5px; }
+            .container { padding: 10px; }
+            /* 2. カレンダー内の文字サイズを「最小限」に（0.7rem ≒ 11px前後） */
+            .fc-event {
+                font-size: 0.7rem !important;
+                padding: 1px 2px !important;
+                line-height: 1.1 !important;
+                white-space: normal !important; /* 改行を許可 */
+                border-radius: 2px !important;
+                margin-bottom: 1px !important;
+            }
+            .fc-event-title {
+                font-weight: normal !important;
+                display: block !important;
+            }
+            .fc-daygrid-day-number {
+                font-size: 11px imort !important;
+                padding: 2px 4px !important;
+            }
+            /* 5. 曜日（日・月・火...）のヘッダーも小さく */
+            .fc-col-header-cell-cushion {
+                font-size: 11px !important;
+                padding: 2px 0 !important;
+            }
+            .fc-daygrid-day-top {
+                flex-direction: row !important; /* 数字を左寄せに */
+                justify-content: flex-start !important;
+            }
+            /* 6. カレンダーの枠線を少し細くしてスッキリさせる */
+            .fc td, .fc th {
+                border: 1px solid #eee !important;
+            }
+        }
     </style>
 </head>
 <body>
