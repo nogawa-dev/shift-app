@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <title>塾配布シフト管理</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa;}
@@ -40,7 +42,7 @@
                 {% if role == 'owner' %}
                     <a href="/register_users" style="color: white; background: #fd7e14; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">👤 ユーザー登録</a>
                 {% endif %}
-                
+                <a href="/forgot_password" style="color: white; background:forestgreen; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">パスワード再設定</a>
                 <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
             </div>
         </div>
@@ -140,7 +142,13 @@
 
             // 1つも選ばれていなかったらストップ
             if (Object.keys(shiftsToSend).length === 0) {
-                alert("シフトが1つも選択されていません！");
+                // 🌟 変更後：ミニマルで洗練された黒ボタンのポップアップ！
+                Swal.fire({
+                    text: 'シフトが1つも選択されていません。',
+                    icon: 'warning',
+                    confirmButtonColor: '#343a40', // ボタンをスッキリしたダークグレーに
+                    confirmButtonText: 'OK'
+                });
                 return;
             }
 
@@ -154,10 +162,30 @@
             });
             
             if (response.ok) {
-                alert('一括送信が完了しました！');
-                window.location.href = '/calendar'; // カレンダーに移動
+                Swal.fire({
+                    title: '送信完了',
+                    text: 'シフトの提出が完了しました。',
+                    icon: 'success',
+                    confirmButtonColor: '#343a40',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    // 🌟 修正1：ポップアップの「OK」が押された "後" に移動させる！
+                    
+                    // 🌟 修正2：募集期間の「初日」を取得して、URLにくっつけてカレンダーに渡す！
+                    let redirectUrl = '/calendar';
+                    if (validDates && validDates.length > 0) {
+                        redirectUrl += '?date=' + validDates[0]; // 例: /calendar?date=2026-04-17
+                    }
+                    window.location.href = redirectUrl; 
+                });
             } else {
-                alert('送信に失敗しました。');
+                Swal.fire({
+                    title: '送信失敗',
+                    text: 'エラーが発生しました。',
+                    icon: 'error', // 🌟 ここを error に修正！
+                    confirmButtonColor: '#343a40',
+                    confirmButtonText: 'OK'
+                });
             }
         }
     </script>

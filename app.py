@@ -36,6 +36,22 @@ def load_valid_dates():
         print(e)
     return []
 
+# 🌟 追加：ログイン中のユーザーが自分のパスワードをサクッと変更する裏口（API）
+@app.route('/change_password', methods=['POST'])
+def change_password():
+    if 'user_name' not in session: 
+        return jsonify({"status": "error"}), 401
+        
+    new_password = request.json.get('new_password')
+    username = session['user_name'] # 今ログインしている人のID
+    
+    if new_password:
+        # Supabaseの自分のパスワードだけを上書き更新する
+        requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}", headers=get_headers(), json={'password': new_password})
+        return jsonify({"status": "success"})
+            
+    return jsonify({"status": "error"}), 400
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -127,19 +143,22 @@ def api_shifts():
         status = shift.get('status', '未確定')
         shift_id = shift.get('id')
         display_name = shift['users']['last_name']
-        time_slot = shift['time_slot']
+        time_slot = shift['time_slot'] # 例: "1. 7:30-8:30"
         display_time = time_slot.split('. ')[1] if '. ' in time_slot else time_slot
         event_title = f"{display_name} ({display_time})"
         shift_date = shift['shift_date']
         
-        # 🌟 ひろが作っていた元の色分け・表示ルールを完全復活！
+        # 🌟 追加：時間帯の「先頭の番号（1, 2, 3...）」をソート用の整理番号として取り出す
+        order_key = time_slot.split('.')[0] if '.' in time_slot else '99'
+        
+        # 🌟 変更：extendedProps の中に "orderId" として整理番号を追加！
         if status == '確定':
             events.append({
                 "title": event_title, 
                 "start": shift_date, 
                 "backgroundColor": "#28a745", 
                 "borderColor": "#28a745", 
-                "extendedProps": {"status": "confirmed", "id": shift_id}
+                "extendedProps": {"status": "confirmed", "id": shift_id, "orderId": order_key}
             })
         elif role in ['owner', 'admin'] and status == '未確定':
             events.append({
@@ -148,7 +167,7 @@ def api_shifts():
                 "backgroundColor": "#ffc107", 
                 "borderColor": "#ffc107", 
                 "textColor": "#212529", 
-                "extendedProps": {"status": "pending", "id": shift_id}
+                "extendedProps": {"status": "pending", "id": shift_id, "orderId": order_key}
             })
         elif role == 'user' and shift['username'] == current_user and status == '未確定':
             events.append({
@@ -157,7 +176,7 @@ def api_shifts():
                 "backgroundColor": "#e7f1ff", 
                 "borderColor": "#007bff", 
                 "textColor": "#007bff", 
-                "extendedProps": {"status": "my_pending", "id": shift_id}
+                "extendedProps": {"status": "my_pending", "id": shift_id, "orderId": order_key}
             })
             
     return jsonify(events)
@@ -278,6 +297,18 @@ def shifts_list():
     shifts = res.json() if res.status_code == 200 else []
     return render_template('shifts.html', user_name=get_display_name(), role=session['role'], shifts=shifts)
 
+# 🌟 追加：自分の未確定シフトを削除する機能
+@app.route('/delete_shift', methods=['POST'])
+def delete_shift():
+    if 'user_name' not in session: return jsonify({"status": "error"}), 401
+    
+    shift_id = request.json.get('shift_id')
+    username = session['user_name'] # 現在ログインしている人
+    
+    # 🌟 安全装置：対象ID ＋ 本人のもの ＋ 「未確定」であること を条件に削除！
+    requests.delete(f"{SUPABASE_URL}/rest/v1/shifts?id=eq.{shift_id}&username=eq.{username}&status=eq.未確定", headers=get_headers())
+    return jsonify({"status": "success"})
+
 def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
 
@@ -298,6 +329,31 @@ def update_role():
         return jsonify({"status": "success"})
         
     return jsonify({"status": "error"}), 400
+
+
+# 🌟 登録済みユーザーを削除する機能（オーナー専用）
+@app.route('/admin/delete_user', methods=['POST'])
+def delete_user():
+    if session.get('role') != 'owner':
+        return jsonify({"status": "error", "message": "権限がありません"}), 403
+        
+    target_username = request.json.get('username')
+    
+    if target_username == session.get('user_name'):
+        return jsonify({"status": "error", "message": "自分自身は削除できません！"}), 400
+
+    # 🌟 修正1：ユーザー本体を消す前に、その人が提出した「シフト」を道連れにして全て削除する！
+    requests.delete(f"{SUPABASE_URL}/rest/v1/shifts?username=eq.{target_username}", headers=get_headers())
+
+    # 🌟 修正2：シフトが綺麗になった後で、ユーザー本体を削除する！
+    res = requests.delete(f"{SUPABASE_URL}/rest/v1/users?username=eq.{target_username}", headers=get_headers())
+    
+    if res.status_code in [200, 204]: 
+        return jsonify({"status": "success"})
+    else:
+        # 🌟 修正3：もしまた失敗した時のために、ターミナルにSupabaseからのエラー詳細を表示させる
+        print("❌ Supabaseエラー:", res.text) 
+        return jsonify({"status": "error", "message": "削除に失敗しました。"}), 500
 
 if __name__ == '__main__':
     if not os.environ.get('VERCEL'):

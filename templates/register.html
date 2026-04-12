@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ユーザー登録管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -22,8 +24,7 @@
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
                 <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
-                {% if role in ['owner', 'admin'] %}
-                {% endif %}
+                <a href="/forgot_password" style="color: white; background:forestgreen; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">パスワード再設定</a>
                 <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
             </div>
         </div>
@@ -56,11 +57,12 @@
                             </td>
                             <td style="padding: 12px;">
                                 {% if uinfo.role != 'owner' %}
-                                    <select id="role-{{ uid }}" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
-                                        <option value="user" {% if uinfo.role == 'user' %}selected{% endif %}>一般ユーザー</option>
-                                        <option value="admin" {% if uinfo.role == 'admin' %}selected{% endif %}>管理者</option>
-                                    </select>
-                                    <button onclick="updateRole('{{ uid }}')" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">変更</button>
+                                <select id="role-{{ uid }}" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                                    <option value="user" {% if uinfo.role == 'user' %}selected{% endif %}>一般ユーザー</option>
+                                    <option value="admin" {% if uinfo.role == 'admin' %}selected{% endif %}>管理者</option>
+                                </select>
+                                <button onclick="updateRole('{{ uid }}')" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">変更</button>
+                                <button onclick="deleteUser('{{ uid }}')" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;">削除</button>
                                 {% else %}
                                     <span style="color: #999; font-size: 13px;">変更不可</span>
                                 {% endif %}
@@ -72,24 +74,92 @@
             </div>
 
             <script>
-            async function updateRole(username) {
+            // 🌟 権限変更の処理を SweetAlert2 のスタイリッシュなデザインに書き換え！
+            function updateRole(username) {
                 const selectElement = document.getElementById(`role-${username}`);
                 const newRole = selectElement.value;
 
-                if(!confirm(`${username} さんの権限を変更してもよろしいですか？`)) return;
+                Swal.fire({
+                    title: '権限の変更',
+                    text: `${username} さんの権限を変更してもよろしいですか？`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#17a2b8', // ボタンを青緑に
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '変更する',
+                    cancelButtonText: 'キャンセル'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        // 「変更する」が押されたら通信開始
+                        const response = await fetch('/admin/update_role', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: username, role: newRole })
+                        });
 
-                const response = await fetch('/admin/update_role', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: username, role: newRole })
+                        if (response.ok) {
+                            Swal.fire({
+                                title: '更新完了',
+                                text: '権限を更新しました。',
+                                icon: 'success',
+                                confirmButtonColor: '#343a40'
+                            }).then(() => {
+                                location.reload(); // OKを押したら画面を更新
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'エラー',
+                                text: '更新に失敗しました。',
+                                icon: 'error',
+                                confirmButtonColor: '#343a40'
+                            });
+                        }
+                    } else {
+                        // キャンセルした場合は、セレクトボックスの見た目を元に戻すためにリロード
+                        location.reload(); 
+                    }
                 });
+            }
+            // 🌟 追加：ユーザー削除のポップアップと裏側への送信処理
+            function deleteUser(username) {
+                Swal.fire({
+                    title: 'ユーザーの削除',
+                    text: `${username} さんを本当に削除しますか？（この操作は元に戻せません！）`,
+                    icon: 'error', // 警告より強めの赤色アイコン
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545', // ボタンを赤色に
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '削除する',
+                    cancelButtonText: 'キャンセル'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        const response = await fetch('/admin/delete_user', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: username })
+                        });
 
-                if (response.ok) {
-                    alert('権限を更新しました！');
-                    location.reload(); // 画面を更新して最新の状態を読み込む
-                } else {
-                    alert('更新に失敗しました。');
-                }
+                        const resData = await response.json(); // Pythonからのメッセージを受け取る
+
+                        if (response.ok && resData.status === 'success') {
+                            Swal.fire({
+                                title: '削除完了',
+                                text: 'ユーザーを削除しました。',
+                                icon: 'success',
+                                confirmButtonColor: '#343a40'
+                            }).then(() => {
+                                location.reload(); // 画面を更新
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'エラー',
+                                text: resData.message || '削除に失敗しました。',
+                                icon: 'error',
+                                confirmButtonColor: '#343a40'
+                            });
+                        }
+                    }
+                });
             }
             </script>
 
