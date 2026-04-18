@@ -2,3 +2,4 @@ Flask
 gunicorn
 jpholiday
 requests
+python-dotenv
