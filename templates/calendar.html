@@ -1,204 +1,123 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カレンダー</title>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa;}
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);}
-        #calendar { max-width: 100%; margin: 0 auto; font-family: sans-serif; }
-        
-        /* 🌟 タブのオシャレなデザイン */
-        .tab-container { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 15px;}
-        .tab-btn { padding: 10px 20px; border: none; border-radius: 20px; background: #e9ecef; color: #495057; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 14px;}
-        .tab-btn:hover { background: #ced4da; }
-        .tab-btn.active { background: #007bff; color: white; box-shadow: 0 2px 5px rgba(0,123,255,0.3);}
-        .tab-btn.active-green { background: #28a745; color: white; box-shadow: 0 2px 5px rgba(40,167,69,0.3);}
-        /* 🌟 ここから下が「スマホ専用」のデザイン設定（画面幅が600px以下の時だけ発動する魔法） */
-        @media screen and (max-width: 600px) {
-            
-            /* 例1：全体の余白を少し狭くして、画面を広く使う */
-            body { padding: 5px; }
-            .container { padding: 10px; }
-            /* 2. カレンダー内の文字サイズを「最小限」に（0.7rem ≒ 11px前後） */
-            .fc-event {
-                font-size: 0.7rem !important;
-                padding: 1px 2px !important;
-                line-height: 1.1 !important;
-                white-space: normal !important; /* 改行を許可 */
-                border-radius: 2px !important;
-                margin-bottom: 1px !important;
-            }
-            .fc-event-title {
-                font-weight: normal !important;
-                display: block !important;
-            }
-            .fc-daygrid-day-number {
-                font-size: 11px imort !important;
-                padding: 2px 4px !important;
-            }
-            /* 5. 曜日（日・月・火...）のヘッダーも小さく */
-            .fc-col-header-cell-cushion {
-                font-size: 11px !important;
-                padding: 2px 0 !important;
-            }
-            .fc-daygrid-day-top {
-                flex-direction: row !important; /* 数字を左寄せに */
-                justify-content: flex-start !important;
-            }
-            /* 6. カレンダーの枠線を少し細くしてスッキリさせる */
-            .fc td, .fc th {
-                border: 1px solid #eee !important;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px;">
-            <span style="white-space: nowrap;">
-                👤 <b>{{ user_name }}</b> さんがログイン中
-                {% if role == 'owner' %}
-                    <span style="background: #e91e63; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">👑 オーナー</span>
-                {% elif role == 'admin' %}
-                    <span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">🛡️ 管理者</span>
-                {% endif %}
-            </span>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <a href="/" style="color: white; background: #007bff; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📝 入力に戻る</a>
-                {% if role in ['owner', 'admin'] %}
-                    <a href="/settings" style="color: white; background: #6c757d; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">⚙️ 募集設定</a>
-                {% endif %}
-                {% if role == 'owner' %}
-                    <a href="/register_users" style="color: white; background: #fd7e14; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">👤 ユーザー登録</a>
-                {% endif %}
-                <a href="/forgot_password" style="color: white; background:forestgreen; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">パスワード再設定</a>
-                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
-            </div>
-        </div>
+{% extends "base.html" %}
+{% block title %}カレンダー{% endblock %}
+{% block container_width %}900px{% endblock %}
+{% block head_scripts %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
 
-        <div class="tab-container">
-            <button id="tab-all" class="tab-btn active" onclick="setFilter('all')">📋 すべて表示</button>
-            <button id="tab-confirmed" class="tab-btn" onclick="setFilter('confirmed')">✅ 確定シフトのみ</button>
-        </div>
+{% block page_nav %}
+    <a href="/" class="nav-btn" style="background: #007bff;">📝 入力に戻る</a>
+{% endblock %}
 
-        <div id='calendar'></div>
-    </div>
+{% block extra_css %}
+    #calendar { max-width: 100%; margin: 0 auto; }
+    .tab-container { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+    .tab-btn { padding: 10px 20px; border: none; border-radius: 20px; background: #e9ecef; color: #495057; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 14px; }
+    .tab-btn:hover { background: #ced4da; }
+    .tab-btn.active { background: #007bff; color: white; box-shadow: 0 2px 5px rgba(0,123,255,0.3); }
+    .tab-btn.active-green { background: #28a745; color: white; box-shadow: 0 2px 5px rgba(40,167,69,0.3); }
+    @media screen and (max-width: 600px) {
+        body { padding: 5px; }
+        .container { padding: 10px; }
+        .fc-event { font-size: 0.7rem !important; padding: 1px 2px !important; line-height: 1.1 !important; white-space: normal !important; border-radius: 2px !important; margin-bottom: 1px !important; }
+        .fc-event-title { font-weight: normal !important; display: block !important; }
+        .fc-daygrid-day-number { font-size: 11px !important; padding: 2px 4px !important; }
+        .fc-col-header-cell-cushion { font-size: 11px !important; padding: 2px 0 !important; }
+        .fc-daygrid-day-top { flex-direction: row !important; justify-content: flex-start !important; }
+        .fc td, .fc th { border: 1px solid #eee !important; }
+    }
+{% endblock %}
 
-    <script>
-        // 🌟 フィルターの状態を覚えておく変数
-        let currentFilter = 'all'; 
-        let calendar; // カレンダー本体
+{% block content %}
+<div class="tab-container">
+    <button id="tab-all" class="tab-btn active" onclick="setFilter('all')">📋 すべて表示</button>
+    <button id="tab-confirmed" class="tab-btn" onclick="setFilter('confirmed')">✅ 確定シフトのみ</button>
+</div>
+<div id='calendar'></div>
 
-        // 🌟 タブが押された時の処理
-        function setFilter(filterType) {
-            currentFilter = filterType;
-            
-            // ボタンの見た目（色）を切り替える
-            document.getElementById('tab-all').className = 'tab-btn' + (filterType === 'all' ? ' active' : '');
-            document.getElementById('tab-confirmed').className = 'tab-btn' + (filterType === 'confirmed' ? ' active-green' : '');
-            
-            // カレンダーに「再読み込みして！」と命令する
-            calendar.refetchEvents();
-        }
+<script>
+    let currentFilter = 'all';
+    let calendar;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var calendarEl = document.getElementById('calendar');
-            var currentRole = "{{ role }}"; 
-            
-            var urlParams = new URLSearchParams(window.location.search);
-            var targetDate = urlParams.get('date');
+    function setFilter(filterType) {
+        currentFilter = filterType;
+        document.getElementById('tab-all').className = 'tab-btn' + (filterType === 'all' ? ' active' : '');
+        document.getElementById('tab-confirmed').className = 'tab-btn' + (filterType === 'confirmed' ? ' active-green' : '');
+        calendar.refetchEvents();
+    }
 
-            calendar = new FullCalendar.Calendar(calendarEl, { // var を外して上の変数に格納
-                initialView: 'dayGridMonth',
-                initialDate: targetDate ? targetDate : new Date(), 
-                locale: 'ja',
-                displayEventTime: false,
-                eventOrder: 'orderId', 
-                
-                // 🌟 変更：データを取得する時にフィルターをかける！
-                events: function(fetchInfo, successCallback, failureCallback) {
-                    fetch('/api/shifts')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (currentFilter === 'confirmed') {
-                                // 「確定シフトのみ」タブの時は、statusが'confirmed'のものだけを抽出
-                                const filtered = data.filter(event => event.extendedProps.status === 'confirmed');
-                                successCallback(filtered);
-                            } else {
-                                // 「すべて表示」の時はそのまま渡す
-                                successCallback(data);
-                            }
-                        })
-                        .catch(error => failureCallback(error));
-                },
-                
-                // クリックした時の処理（SweetAlert2 統一版）
-                eventClick: function(info) {
-                    var status = info.event.extendedProps.status;
-                    var shiftId = info.event.extendedProps.id;
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        const currentRole = "{{ role }}";
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetDate = urlParams.get('date');
 
-                    if ((currentRole === 'owner' || currentRole === 'admin') && status === 'pending') {
-                        Swal.fire({
-                            title: 'シフトの確定',
-                            text: info.event.title + " を確定にしますか？",
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonColor: '#28a745', 
-                            cancelButtonColor: '#6c757d',
-                            confirmButtonText: '確定する',
-                            cancelButtonText: 'キャンセル'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                var form = document.createElement('form');
-                                form.method = 'POST';
-                                form.action = '/approve';
-                                var input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = 'shift_id';
-                                input.value = shiftId;
-                                form.appendChild(input);
-                                document.body.appendChild(form);
-                                form.submit();
-                            }
-                        });
-                    } 
-                    else if (status === 'my_pending') {
-                        Swal.fire({
-                            title: '提出の取り消し',
-                            text: "このシフトの提出を取り消し（削除）しますか？",
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#dc3545', 
-                            cancelButtonColor: '#6c757d',  
-                            confirmButtonText: '削除する',
-                            cancelButtonText: 'キャンセル'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                fetch('/delete_shift', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ shift_id: shiftId })
-                                }).then(() => location.reload());
-                            }
-                        });
-                    }
-                    else if (status === 'confirmed') {
-                        Swal.fire({
-                            title: '変更不可',
-                            text: 'このシフトはすでに確定されているため、取り消しできません。個別に相談してください。',
-                            icon: 'info',
-                            confirmButtonColor: '#343a40',
-                            confirmButtonText: 'OK'
-                        });
-                    }
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            initialDate: targetDate || new Date(),
+            locale: 'ja',
+            displayEventTime: false,
+            eventOrder: 'orderId',
+            events: function(fetchInfo, successCallback, failureCallback) {
+                fetch('/api/shifts')
+                    .then(response => response.json())
+                    .then(data => {
+                        const filtered = currentFilter === 'confirmed'
+                            ? data.filter(e => e.extendedProps.status === 'confirmed')
+                            : data;
+                        successCallback(filtered);
+                    })
+                    .catch(failureCallback);
+            },
+            eventClick: function(info) {
+                const status = info.event.extendedProps.status;
+                const shiftId = info.event.extendedProps.id;
+
+                if ((currentRole === 'owner' || currentRole === 'admin') && status === 'pending') {
+                    Swal.fire({
+                        title: 'シフトの確定', text: info.event.title + " を確定にしますか？",
+                        icon: 'question', showCancelButton: true,
+                        confirmButtonColor: '#28a745', cancelButtonColor: '#6c757d',
+                        confirmButtonText: '確定する', cancelButtonText: 'キャンセル'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = '/approve';
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'shift_id';
+                            input.value = shiftId;
+                            form.appendChild(input);
+                            document.body.appendChild(form);
+                            form.submit();
+                        }
+                    });
+                } else if (status === 'my_pending') {
+                    Swal.fire({
+                        title: '提出の取り消し', text: "このシフトの提出を取り消し（削除）しますか？",
+                        icon: 'warning', showCancelButton: true,
+                        confirmButtonColor: '#dc3545', cancelButtonColor: '#6c757d',
+                        confirmButtonText: '削除する', cancelButtonText: 'キャンセル'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            fetch('/delete_shift', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ shift_id: shiftId })
+                            }).then(() => location.reload());
+                        }
+                    });
+                } else if (status === 'confirmed') {
+                    Swal.fire({
+                        title: '変更不可', text: 'このシフトはすでに確定されているため、取り消しできません。個別に相談してください。',
+                        icon: 'info', confirmButtonColor: '#343a40', confirmButtonText: 'OK'
+                    });
                 }
-            });
-            calendar.render();
+            }
         });
-    </script>
-</body>
-</html>
+        calendar.render();
+    });
+</script>
+{% endblock %}

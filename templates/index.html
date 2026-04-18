@@ -1,215 +1,118 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <title>塾配布シフト管理</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa;}
-        .container{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);}
-        .header-bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
-        
-        /* 🌟 ボタン風のチェックボックスデザイン */
-        .slot-btn { display: inline-block; padding: 8px 12px; margin: 3px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px; background: #f8f9fa; transition: 0.2s;}
-        .slot-btn:hover { background: #e2e6ea; }
-        .slot-btn.active { background: #007bff; color: white; border-color: #0056b3; font-weight: bold;}
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px; }
-        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-        th { background-color: #e9ecef; color: #495057; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        /* 🌟 ここから下が「スマホ専用」のデザイン設定（画面幅が600px以下の時だけ発動する魔法） */
-        @media screen and (max-width: 600px) {
-            
-            /* 例1：全体の余白を少し狭くして、画面を広く使う */
-            body { padding: 10px; }
-            .container { padding: 15px; }
-            
-            /* 例2：シフト入力のボタン（.slot-btn）を押しやすいように大きくする！ */
-            .slot-btn {
-                display: block; /* 横並びから縦並びに変えたい場合はこれ */
-                width: 100%;    /* 画面幅いっぱいのボタンにする */
-                padding: 8px 10px imo !important;  /* 指で押しやすいように余白を大きく */
-                margin: 2px 0 !important; /* ボタン同士の隙間をあける */
-                font-size: 14px; /* 文字を少し大きく */
-                box-sizing: border-box;
-                line-height: 1.2 !important;
-            }
+{% extends "base.html" %}
+{% block title %}塾配布シフト管理{% endblock %}
+{% block head_scripts %}<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>{% endblock %}
 
-            /* 例3：カレンダーの文字サイズを調整する */
-            table { font-size: 13px; }
-            th, td { padding: 8px; }
+{% block page_nav %}
+    <a href="/calendar" class="nav-btn" style="background: #17a2b8;">📅 カレンダー</a>
+{% endblock %}
+
+{% block extra_css %}
+    .slot-btn { display: inline-block; padding: 8px 12px; margin: 3px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px; background: #f8f9fa; transition: 0.2s; }
+    .slot-btn:hover { background: #e2e6ea; }
+    .slot-btn.active { background: #007bff; color: white; border-color: #0056b3; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px; }
+    th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+    th { background-color: #e9ecef; color: #495057; }
+    tr:nth-child(even) { background-color: #f8f9fa; }
+    @media screen and (max-width: 600px) {
+        body { padding: 10px; }
+        .container { padding: 15px; }
+        .slot-btn { display: block; width: 100%; padding: 8px 10px; margin: 2px 0; font-size: 14px; box-sizing: border-box; line-height: 1.2; }
+        table { font-size: 13px; }
+        th, td { padding: 8px; }
+    }
+{% endblock %}
+
+{% block content %}
+<h2>📝 シフト一括入力</h2>
+<p>希望する日付の時間帯をクリックして、最後に一番下の「一括送信」を押してください。</p>
+
+<div id="bulk-input-area">
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 130px; text-align: center;">日付</th>
+                <th>希望時間帯（複数選択可）</th>
+            </tr>
+        </thead>
+        <tbody id="shift-tbody"></tbody>
+    </table>
+</div>
+
+<div id="submit-area" style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;">
+    <p>補足メモ</p>
+    <textarea id="bulk-memo" rows="3" style="width: 100%; border-radius: 5px; padding: 10px; box-sizing: border-box;"></textarea>
+    <button onclick="sendBulkData()" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px;">
+        📤 送信する
+    </button>
+</div>
+
+<script>
+    let selectedShifts = {};
+    const validDates = JSON.parse('{{ valid_dates | tojson | safe }}');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tbody = document.getElementById('shift-tbody');
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+        if (!validDates || validDates.length === 0) {
+            document.getElementById('bulk-input-area').innerHTML =
+                '<div style="background: #ffeeba; color: #856404; padding: 20px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 16px;">現在、シフトの募集は行われていません。<br>管理者の設定をお待ちください。</div>';
+            document.getElementById('submit-area').style.display = 'none';
+            return;
         }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header-bar" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px;">
-            <span style="white-space: nowrap;">
-                👤 <b>{{ user_name }}</b> さんがログイン中
-                {% if role == 'owner' %}
-                    <span style="background: #e91e63; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">👑 オーナー</span>
-                {% elif role == 'admin' %}
-                    <span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">🛡️ 管理者</span>
-                {% endif %}
-            </span>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <a href="/calendar" style="color: white; background: #17a2b8; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">📅 カレンダー</a>
-                
-                {% if role in ['owner', 'admin'] %}
-                    <a href="/settings" style="color: white; background: #6c757d; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">⚙️ 募集設定</a>
-                {% endif %}
 
-                {% if role == 'owner' %}
-                    <a href="/register_users" style="color: white; background: #fd7e14; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">👤 ユーザー登録</a>
-                {% endif %}
-                <a href="/forgot_password" style="color: white; background:forestgreen; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">パスワード再設定</a>
-                <a href="/logout" style="color: white; background: #dc3545; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap;">ログアウト</a>
-            </div>
-        </div>
-
-        <h2>📝 シフト一括入力</h2>
-        <p>希望する日付の時間帯をクリックして、最後に一番下の「一括送信」を押してください。</p>
-
-        <div id="bulk-input-area">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 130px; text-align: center;">日付</th>
-                        <th>希望時間帯（複数選択可）</th>
-                    </tr>
-                </thead>
-                <tbody id="shift-tbody">
-                    </tbody>
-            </table>
-        </div>
-
-        <div id="submit-area" style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;">
-            <p>補足メモ</p>
-            <textarea id="bulk-memo" rows="3" style="width: 100%; border-radius: 5px; padding: 10px; box-sizing: border-box;"></textarea>
-            
-            <button onclick="sendBulkData()" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px;">
-                📤 送信する
-            </button>
-        </div>
-    </div>
-
-    <script>
-        let selectedShifts = {}; // 選んだシフトを貯めておく箱
-
-        // 🌟 画面が開いた瞬間に実行される処理
-        // 🌟 Flaskから渡された「募集中の日付リスト」をJavaScriptで受け取る！
-        const validDates = JSON.parse('{{ valid_dates | tojson | safe }}');
-        // 🌟 画面が開いた瞬間に実行される処理
-        document.addEventListener('DOMContentLoaded', function() {
-            const tbody = document.getElementById('shift-tbody');
-            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-
-            // 募集期間が設定されていない（空っぽ）の場合の処理
-            if (!validDates || validDates.length === 0) {
-                document.getElementById('bulk-input-area').innerHTML = 
-                    '<div style="background: #ffeeba; color: #856404; padding: 20px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 16px;">現在、シフトの募集は行われていません。<br>管理者の設定をお待ちください。</div>';
-                document.getElementById('submit-area').style.display = 'none'; // 送信ボタンも隠す
-                return;
-            }
-
-            // 🌟 30日分ループするのではなく、Flaskから来た「指定日」だけループする！
-            validDates.forEach(dateStr => {
-                selectedShifts[dateStr] = []; // 箱を準備
-
-                // dateStr は "2026-04-20" のような形なので、分解して表示用にする
-                let d = new Date(dateStr);
-                let mm = String(d.getMonth() + 1).padStart(2, '0');
-                let dd = String(d.getDate()).padStart(2, '0');
-                let dayStr = dayNames[d.getDay()];
-
-                const row = document.createElement('tr');
-                
-                row.innerHTML = `
-                    <td style="text-align: center;"><b>${mm}/${dd} (${dayStr})</b></td>
-                    <td>
-                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '1. 7:30-8:30', this)">7:30-8:30</span>
-                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '2. 8:00-9:00', this)">8:00-9:00</span>
-                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '3. 15:30-16:30', this)">15:30-16:30</span>
-                        <span class="slot-btn" onclick="toggleSlot('${dateStr}', '4. 17:30-18:30', this)">17:30-18:30</span>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
+        validDates.forEach(dateStr => {
+            selectedShifts[dateStr] = [];
+            const d = new Date(dateStr);
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const dayStr = dayNames[d.getDay()];
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="text-align: center;"><b>${mm}/${dd} (${dayStr})</b></td>
+                <td>
+                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '1. 7:30-8:30', this)">7:30-8:30</span>
+                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '2. 8:00-9:00', this)">8:00-9:00</span>
+                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '3. 15:30-16:30', this)">15:30-16:30</span>
+                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '4. 17:30-18:30', this)">17:30-18:30</span>
+                </td>
+            `;
+            tbody.appendChild(row);
         });
+    });
 
-        // 🌟 ボタンを押した時の処理（色を変えて箱に入れる/出す）
-        function toggleSlot(date, slot, el) {
-            if (selectedShifts[date].includes(slot)) {
-                // すでに入っていたら取り出す（キャンセル）
-                selectedShifts[date] = selectedShifts[date].filter(s => s !== slot);
-                el.classList.remove('active');
-            } else {
-                // 入っていなかったら箱に入れる（選択）
-                selectedShifts[date].push(slot);
-                el.classList.add('active');
-            }
+    function toggleSlot(date, slot, el) {
+        if (selectedShifts[date].includes(slot)) {
+            selectedShifts[date] = selectedShifts[date].filter(s => s !== slot);
+            el.classList.remove('active');
+        } else {
+            selectedShifts[date].push(slot);
+            el.classList.add('active');
         }
+    }
 
-        // 🌟 一括送信ボタンを押した時の処理
-        async function sendBulkData() {
-            // 空っぽの日付を除外して、本当に選ばれたデータだけをまとめる
-            const shiftsToSend = {};
-            for (const [date, slots] of Object.entries(selectedShifts)) {
-                if (slots.length > 0) {
-                    shiftsToSend[date] = slots;
-                }
-            }
-
-            // 1つも選ばれていなかったらストップ
-            if (Object.keys(shiftsToSend).length === 0) {
-                // 🌟 変更後：ミニマルで洗練された黒ボタンのポップアップ！
-                Swal.fire({
-                    text: 'シフトが1つも選択されていません。',
-                    icon: 'warning',
-                    confirmButtonColor: '#343a40', // ボタンをスッキリしたダークグレーに
-                    confirmButtonText: 'OK'
-                });
-                return;
-            }
-
-            const memo = document.getElementById('bulk-memo').value;
-            
-            // さっき作ったPythonの /submit_bulk にデータを飛ばす！
-            const response = await fetch('/submit_bulk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ shifts: shiftsToSend, memo: memo })
+    async function sendBulkData() {
+        const shiftsToSend = Object.fromEntries(
+            Object.entries(selectedShifts).filter(([, slots]) => slots.length > 0)
+        );
+        if (Object.keys(shiftsToSend).length === 0) {
+            Swal.fire({ text: 'シフトが1つも選択されていません。', icon: 'warning', confirmButtonColor: '#343a40', confirmButtonText: 'OK' });
+            return;
+        }
+        const memo = document.getElementById('bulk-memo').value;
+        const response = await fetch('/submit_bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shifts: shiftsToSend, memo: memo })
+        });
+        if (response.ok) {
+            Swal.fire({ title: '送信完了', text: 'シフトの提出が完了しました。', icon: 'success', confirmButtonColor: '#343a40', confirmButtonText: 'OK' }).then(() => {
+                window.location.href = validDates.length > 0 ? '/calendar?date=' + validDates[0] : '/calendar';
             });
-            
-            if (response.ok) {
-                Swal.fire({
-                    title: '送信完了',
-                    text: 'シフトの提出が完了しました。',
-                    icon: 'success',
-                    confirmButtonColor: '#343a40',
-                    confirmButtonText: 'OK'
-                }).then(() => {
-                    // 🌟 修正1：ポップアップの「OK」が押された "後" に移動させる！
-                    
-                    // 🌟 修正2：募集期間の「初日」を取得して、URLにくっつけてカレンダーに渡す！
-                    let redirectUrl = '/calendar';
-                    if (validDates && validDates.length > 0) {
-                        redirectUrl += '?date=' + validDates[0]; // 例: /calendar?date=2026-04-17
-                    }
-                    window.location.href = redirectUrl; 
-                });
-            } else {
-                Swal.fire({
-                    title: '送信失敗',
-                    text: 'エラーが発生しました。',
-                    icon: 'error', // 🌟 ここを error に修正！
-                    confirmButtonColor: '#343a40',
-                    confirmButtonText: 'OK'
-                });
-            }
+        } else {
+            Swal.fire({ title: '送信失敗', text: 'エラーが発生しました。', icon: 'error', confirmButtonColor: '#343a40', confirmButtonText: 'OK' });
         }
-    </script>
-</body>
-</html>
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}塾配布シフト{% endblock %}</title>
+    {% block head_scripts %}{% endblock %}
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: {% block container_width %}800px{% endblock %}; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .header-bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .nav-btn { color: white; text-decoration: none; padding: 6px 15px; border-radius: 4px; font-size: 14px; font-weight: bold; white-space: nowrap; }
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-bar">
+            <span style="white-space: nowrap;">
+                👤 <b>{{ user_name }}</b> さんがログイン中
+                {% if role == 'owner' %}
+                    <span style="background: #e91e63; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">👑 オーナー</span>
+                {% elif role == 'admin' %}
+                    <span style="background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: bold;">🛡️ 管理者</span>
+                {% endif %}
+            </span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                {% block nav_section %}
+                    {% block page_nav %}{% endblock %}
+                    {% if role in ['owner', 'admin'] %}
+                        <a href="/settings" class="nav-btn" style="background: #6c757d;">⚙️ 募集設定</a>
+                    {% endif %}
+                    {% if role == 'owner' %}
+                        <a href="/register_users" class="nav-btn" style="background: #fd7e14;">👤 ユーザー登録</a>
+                    {% endif %}
+                    <a href="/forgot_password" class="nav-btn" style="background: forestgreen;">パスワード再設定</a>
+                    <a href="/logout" class="nav-btn" style="background: #dc3545;">ログアウト</a>
+                {% endblock %}
+            </div>
+        </div>
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

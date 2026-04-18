@@ -2,79 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>シフト募集設定</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         input[type="date"] { padding: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 16px; }
-        /* 🌟 スマホ用の設定画面レイアウト（文字サイズ拡大・余白調整版） */
         @media screen and (max-width: 600px) {
-            /* 1. コンテナ全体の文字サイズをベースアップ */
-            .container {
-                font-size: 16px !important;
-                padding: 15px !important;
-            }
-
-            /* 2. 見出しを大きく、はっきりと */
-            h2 { font-size: 22px !important; margin-bottom: 15px !important; }
-            h3 { font-size: 18px !important; margin-top: 25px !important; }
-            p { font-size: 15px !important; line-height: 1.5 !important; }
-
-            /* 3. 日付入力フォームを縦に並べて押しやすく */
-            form {
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .date-inputs {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                align-items: stretch !important; /* 横幅いっぱいに広げる */
-            }
-
-            /* 4. 入力ボックスとボタンを巨大化！ */
-            input[type="date"] {
-                width: 100%;
-                box-sizing: border-box;
-                padding: 14px !important;
-                font-size: 18px !important; /* スマホで一番押しやすいサイズ */
-            }
-
-            button[type="submit"] {
-                width: 100%;
-                padding: 16px !important;
-                font-size: 18px !important;
-                font-weight: bold !important;
-                margin-top: 5px;
-            }
-
-            /* 5. 緑の日程バッジを大きくして、間隔を空ける */
-            .date-badge {
-                display: inline-block;
-                padding: 8px 12px !important;
-                font-size: 16px !important;
-                margin: 4px 2px !important;
-                border-radius: 6px !important;
-            }
-
-            /* 6. 下部のナビゲーションボタンも縦並びにして巨大化 */
-            .nav-buttons {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                margin-top: 30px !important;
-            }
-            
-            .nav-buttons a {
-                display: block;
-                width: 100%;
-                box-sizing: border-box;
-                padding: 16px !important;
-                font-size: 16px !important;
-                margin: 0 !important;
-            }
+            .container { font-size: 16px; padding: 15px; }
+            h2 { font-size: 22px; margin-bottom: 15px; }
+            h3 { font-size: 18px; margin-top: 25px; }
+            p { font-size: 15px; line-height: 1.5; }
+            form { display: flex; flex-direction: column; gap: 15px; }
+            input[type="date"] { width: 100%; box-sizing: border-box; padding: 14px; font-size: 18px; }
+            button[type="submit"] { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; margin-top: 5px; }
+            .date-badge { display: inline-block; padding: 8px 12px; font-size: 16px; margin: 4px 2px; border-radius: 6px; }
+            .nav-links { display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
+            .nav-links a { display: block; width: 100%; box-sizing: border-box; padding: 16px; font-size: 16px; margin: 0; }
         }
     </style>
 </head>
@@ -106,16 +50,16 @@
         <h3 style="margin-top: 40px;">📅 現在募集中の日程（全 {{ valid_dates|length }} 日）</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             {% for date in valid_dates %}
-                <span style="background: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;">{{ date }}</span>
+                <span class="date-badge" style="background: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 14px;">{{ date }}</span>
             {% else %}
                 <span style="color: #dc3545; font-weight: bold;">現在、募集している日程はありません。</span>
             {% endfor %}
         </div>
-        <div style="margin-top: 40px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
-            <a href="/" style="color: #495057; text-decoration: none; font-weight: bold; background: #e9ecef; padding: 10px 25px; border-radius: 4px; display: inline-block; transition: 0.2s;">← 入力画面に戻る</a>
-            
-            <a href="/calendar" style="color: white; text-decoration: none; font-weight: bold; background: #6c757d; padding: 10px 25px; border-radius: 4px; display: inline-block; transition: 0.2s;">📅 カレンダーに戻る</a>
+
+        <div class="nav-links" style="margin-top: 40px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+            <a href="/" style="color: #495057; text-decoration: none; font-weight: bold; background: #e9ecef; padding: 10px 25px; border-radius: 4px; display: inline-block;">← 入力画面に戻る</a>
+            <a href="/calendar" style="color: white; text-decoration: none; font-weight: bold; background: #6c757d; padding: 10px 25px; border-radius: 4px; display: inline-block;">📅 カレンダーに戻る</a>
         </div>
-        </div>
-    </body>
+    </div>
+</body>
 </html>
