@@ -7,11 +7,12 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from threading import Timer
 import webbrowser
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_key_hiro'
+app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_key_hiro')
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -52,6 +53,12 @@ def load_valid_dates():
         print(e)
     return []
 
+def verify_password(stored, provided):
+    # ハッシュ済みならcheck_password_hash、平文（移行前）ならそのまま比較
+    if stored.startswith('pbkdf2:') or stored.startswith('scrypt:'):
+        return check_password_hash(stored, provided)
+    return stored == provided
+
 def get_all_users():
     res = requests.get(f"{SUPABASE_URL}/rest/v1/users?select=*", headers=get_headers())
     users_data = res.json() if res.status_code == 200 else []
@@ -65,7 +72,8 @@ def change_password():
     new_password = request.json.get('new_password')
     if not new_password:
         return jsonify({"status": "error"}), 400
-    requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}", headers=get_headers(), json={'password': new_password})
+    hashed = generate_password_hash(new_password)
+    requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}", headers=get_headers(), json={'password': hashed})
     return jsonify({"status": "success"})
 
 
@@ -77,7 +85,7 @@ def login():
         res = requests.get(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}&select=*", headers=get_headers())
         if res.status_code == 200 and res.json():
             user = res.json()[0]
-            if user['password'] == password:
+            if verify_password(user['password'], password):
                 session['user_name'] = username
                 session['role'] = user['role']
                 session['last_name'] = user.get('last_name', '')
@@ -92,7 +100,11 @@ def setup():
         return redirect(url_for('login'))
     if request.method == 'POST':
         last_name = request.form.get('last_name')
-        requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}", headers=get_headers(), json={'last_name': last_name})
+        new_password = request.form.get('password')
+        update_data = {'last_name': last_name}
+        if new_password:
+            update_data['password'] = generate_password_hash(new_password)
+        requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}", headers=get_headers(), json=update_data)
         session['last_name'] = last_name
         return redirect(url_for('index'))
     return render_template('setup.html')
@@ -106,7 +118,8 @@ def forgot_password():
         new_password = request.form.get('new_password')
         res = requests.get(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}&last_name=eq.{last_name}&select=*", headers=get_headers())
         if res.status_code == 200 and res.json():
-            requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}", headers=get_headers(), json={'password': new_password})
+            hashed = generate_password_hash(new_password)
+            requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}", headers=get_headers(), json={'password': hashed})
             return render_template('forgot.html', success="パスワードをリセットしました！新しいパスワードでログインしてください。")
         return render_template('forgot.html', error="IDかカレンダー表示名が間違っています。")
     return render_template('forgot.html')
@@ -203,7 +216,7 @@ def register_users():
         new_password = request.form.get('password')
         new_role = request.form.get('role')
         res = requests.post(f"{SUPABASE_URL}/rest/v1/users", headers=get_headers(), json={
-            'username': new_username, 'password': new_password, 'role': new_role, 'last_name': ''
+            'username': new_username, 'password': generate_password_hash(new_password), 'role': new_role, 'last_name': ''
         })
         users_dict = get_all_users()
         if res.status_code in [200, 201]:
