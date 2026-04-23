@@ -158,10 +158,15 @@ def api_shifts():
     role = session.get('role')
     current_user = session.get('user_name')
     events = []
+    seen_shift_ids = set()
+
 
     for shift in shifts:
         status = shift.get('status', '未確定')
         shift_id = shift.get('id')
+        if shift_id in seen_shift_ids:
+            continue
+        seen_shift_ids.add(shift_id)
         display_name = shift['users']['last_name']
         time_slot = shift['time_slot']
         display_time = time_slot.split('. ')[1] if '. ' in time_slot else time_slot
@@ -197,14 +202,10 @@ def submit_bulk():
     shifts_data = data.get('shifts', {})
     memo = data.get('memo', '')
     username = session['user_name']
-    existing_res = requests.get(f"{SUPABASE_URL}/rest/v1/shifts?username=eq.{username}&select=shift_date,time_slot", headers=get_headers())
-    existing = {(s['shift_date'], s['time_slot']) for s in (existing_res.json() if existing_res.status_code == 200 else [])}
-
     payload = [
         {'username': username, 'shift_date': date, 'time_slot': slot, 'memo': memo, 'status': '未確定'}
         for date, slots in shifts_data.items()
         for slot in slots
-        if (date, slot) not in existing
     ]
     if payload:
         requests.post(f"{SUPABASE_URL}/rest/v1/shifts", headers=get_headers(), json=payload)
@@ -215,10 +216,22 @@ def submit_bulk():
 def register_users():
     if 'user_name' not in session or session.get('role') != 'owner':
         return redirect(url_for('index'))
+    
     if request.method == 'POST':
         new_username = request.form.get('username')
         new_password = request.form.get('password')
         new_role = request.form.get('role')
+        
+        # --- 追加：既存ユーザーのチェック ---
+        existing_users = get_all_users()
+        if new_username in existing_users:
+            return render_template('register.html', 
+                                 error=f"ID「{new_username}」は既に登録されています。", 
+                                 user_name=get_display_name(), 
+                                 role=session['role'], 
+                                 users=existing_users)
+        # -------------------------------
+
         res = requests.post(f"{SUPABASE_URL}/rest/v1/users", headers=get_headers(), json={
             'username': new_username, 'password': generate_password_hash(new_password), 'role': new_role, 'last_name': ''
         })
