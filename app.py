@@ -197,10 +197,14 @@ def submit_bulk():
     shifts_data = data.get('shifts', {})
     memo = data.get('memo', '')
     username = session['user_name']
+    existing_res = requests.get(f"{SUPABASE_URL}/rest/v1/shifts?username=eq.{username}&select=shift_date,time_slot", headers=get_headers())
+    existing = {(s['shift_date'], s['time_slot']) for s in (existing_res.json() if existing_res.status_code == 200 else [])}
+
     payload = [
         {'username': username, 'shift_date': date, 'time_slot': slot, 'memo': memo, 'status': '未確定'}
         for date, slots in shifts_data.items()
         for slot in slots
+        if (date, slot) not in existing
     ]
     if payload:
         requests.post(f"{SUPABASE_URL}/rest/v1/shifts", headers=get_headers(), json=payload)
