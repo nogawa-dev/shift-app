@@ -158,19 +158,25 @@ def api_shifts():
     role = session.get('role')
     current_user = session.get('user_name')
     events = []
-    seen_shift_ids = set()
+    seen_shifts = set()
 
 
     for shift in shifts:
+        # 重複判定のキー：(ユーザーID, 日付, 時間帯)
+        # IDが違ってもこれらが全て一致するものは「同じシフト」とみなす
+        shift_key = (shift['username'], shift['shift_date'], shift['time_slot'])
+        # すでに処理済みのキーであれば、このデータはスキップする
+        if shift_key in seen_shifts:
+            continue
+        # 未処理の場合はセットに追加して、カレンダー表示用の処理に進む
+        seen_shifts.add(shift_key)
         status = shift.get('status', '未確定')
         shift_id = shift.get('id')
-        if shift_id in seen_shift_ids:
-            continue
-        seen_shift_ids.add(shift_id)
-        display_name = shift['users']['last_name']
+        # ユーザー情報の紐付けがうまくいっていない場合の安全策
+        last_name = shift['users']['last_name'] if shift.get('users') else shift['username']
         time_slot = shift['time_slot']
         display_time = time_slot.split('. ')[1] if '. ' in time_slot else time_slot
-        event_title = f"{display_name} ({display_time})"
+        event_title = f"{last_name} ({display_time})"
         shift_date = shift['shift_date']
         order_key = time_slot.split('.')[0] if '.' in time_slot else '99'
 
