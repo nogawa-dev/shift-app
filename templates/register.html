@@ -30,6 +30,7 @@
                     <tr style="background: #e9ecef; font-size: 14px;">
                         <th style="padding: 12px; border-bottom: 1px solid #ddd;">ログインID</th>
                         <th style="padding: 12px; border-bottom: 1px solid #ddd;">カレンダー表示名</th>
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">メールアドレス</th>
                         <th style="padding: 12px; border-bottom: 1px solid #ddd;">現在の権限</th>
                         <th style="padding: 12px; border-bottom: 1px solid #ddd;">権限の変更</th>
                     </tr>
@@ -39,6 +40,9 @@
                     <tr style="border-bottom: 1px solid #eee;">
                         <td style="padding: 12px; font-weight: bold;">{{ uid }}</td>
                         <td style="padding: 12px;">{{ uinfo.last_name if uinfo.last_name else '（未設定）' }}</td>
+                        <td style="padding: 12px; font-size: 13px;">
+                            {% if uinfo.email %}<span>{{ uinfo.email }}</span>{% else %}<span style="color: #dc3545;">未登録</span>{% endif %}
+                        </td>
                         <td style="padding: 12px;">
                             {% if uinfo.role == 'owner' %}👑 オーナー
                             {% elif uinfo.role == 'admin' %}🛡️ 管理者
@@ -74,6 +78,7 @@
         {% endif %}
         <input type="text" name="username" placeholder="希望のログインID（半角英数）" required style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
         <input type="text" name="password" placeholder="初期パスワード（4桁など）" required style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+        <input type="email" name="email" placeholder="メールアドレス（パスワード再設定に使用）" style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
         <select name="role" style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
             <option value="user">一般ユーザー（シフト提出のみ）</option>
             <option value="admin">管理者（シフトの確定が可能）</option>

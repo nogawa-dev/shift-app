@@ -5,37 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>パスワード再設定</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f8f9fa; margin: 0; }
-        .reset-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 320px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 16px; }
-        button:hover { background: #c82333; }
-        .error { color: #dc3545; font-size: 14px; margin-bottom: 15px; text-align: center; font-weight: bold; }
-        .success { color: #28a745; font-size: 14px; margin-bottom: 15px; text-align: center; font-weight: bold; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8f9fa; margin: 0; padding: 20px; box-sizing: border-box; }
+        .reset-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 360px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        .btn-primary { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 16px; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-danger { width: 100%; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 16px; }
+        .btn-danger:hover { background: #c82333; }
+        .error { color: #dc3545; font-size: 14px; margin-bottom: 15px; text-align: center; font-weight: bold; background: #f8d7da; padding: 10px; border-radius: 4px; }
+        .success { color: #28a745; font-size: 14px; margin-bottom: 15px; text-align: center; font-weight: bold; background: #d4edda; padding: 10px; border-radius: 4px; }
+        .info { color: #004085; font-size: 14px; margin-bottom: 15px; text-align: center; background: #cce5ff; padding: 10px; border-radius: 4px; border: 1px solid #b8daff; }
+        .step-badge { display: inline-block; background: #007bff; color: white; padding: 3px 12px; border-radius: 12px; font-size: 13px; margin-bottom: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="reset-box">
         <h2 style="text-align: center; margin-top: 0;">🔑 パスワード再設定</h2>
+
         {% if error %}
             <div class="error">{{ error }}</div>
-        {% elif success %}
-            <div class="success">{{ success }}</div>
-            <a href="/login" style="display: block; text-align: center; margin-top: 20px; text-decoration: none; color: white; background: #007bff; padding: 10px; border-radius: 4px; font-weight: bold;">ログイン画面へ戻る</a>
         {% endif %}
+
+        {% if success %}
+            <div class="success">{{ success }}</div>
+            <a href="/login" style="display: block; text-align: center; margin-top: 20px; text-decoration: none; color: white; background: #007bff; padding: 12px; border-radius: 4px; font-weight: bold;">ログイン画面へ戻る</a>
+        {% endif %}
+
         {% if not success %}
-        <p style="font-size: 13px; color: #555; line-height: 1.5;">
-            本人確認のため、登録している「ログインID」と「名字」を入力してください。
-        </p>
-        <form method="POST">
-            <input type="text" name="username" placeholder="ログインID" required>
-            <input type="text" name="last_name" placeholder="名字" required>
-            <input type="password" name="new_password" placeholder="新しいパスワード" required>
-            <button type="submit">パスワードをリセット</button>
-        </form>
-        <p style="text-align: center; margin-top: 20px; font-size: 14px;">
-            <a href="/login" style="color: #007bff; text-decoration: none;">← ログイン画面に戻る</a>
-        </p>
+            {% if stage == '1' %}
+                <span class="step-badge">STEP 1 / 2</span>
+                <p style="font-size: 13px; color: #555; line-height: 1.6;">
+                    登録しているメールアドレスを入力してください。<br>
+                    確認コードを送信します。
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="stage" value="1">
+                    <input type="email" name="email" placeholder="メールアドレス" required autocomplete="email">
+                    <button type="submit" class="btn-primary">確認コードを送信</button>
+                </form>
+
+            {% elif stage == '2' %}
+                <span class="step-badge">STEP 2 / 2</span>
+                {% if info %}
+                    <div class="info">{{ info }}</div>
+                {% endif %}
+                <p style="font-size: 13px; color: #555; line-height: 1.6;">
+                    メールに届いた6桁の確認コードと、新しいパスワードを入力してください。<br>
+                    <b>有効期限：10分間</b>
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="stage" value="2">
+                    <input type="hidden" name="username" value="{{ username }}">
+                    <input type="text" name="otp" placeholder="確認コード（6桁）" required
+                           maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                           autocomplete="one-time-code"
+                           style="letter-spacing: 6px; font-size: 20px; text-align: center;">
+                    <input type="password" name="new_password" placeholder="新しいパスワード" required autocomplete="new-password">
+                    <button type="submit" class="btn-danger">パスワードをリセット</button>
+                </form>
+                <p style="text-align: center; margin-top: 15px; font-size: 13px;">
+                    <a href="/forgot_password" style="color: #6c757d; text-decoration: none;">← IDの入力からやり直す</a>
+                </p>
+            {% endif %}
+
+            <p style="text-align: center; margin-top: 20px; font-size: 14px;">
+                <a href="/login" style="color: #007bff; text-decoration: none;">← ログイン画面に戻る</a>
+            </p>
         {% endif %}
     </div>
 </body>

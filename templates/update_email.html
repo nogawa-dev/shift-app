@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}メールアドレス登録{% endblock %}
+
+{% block content %}
+<h2>📧 メールアドレスの登録・変更</h2>
+<p>パスワード再設定に使用するメールアドレスを登録します。</p>
+
+<div style="max-width: 420px; margin-top: 20px;">
+    {% if success %}
+        <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-weight: bold;">{{ success }}</div>
+    {% endif %}
+    {% if error %}
+        <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-weight: bold;">{{ error }}</div>
+    {% endif %}
+    {% if info %}
+        <div style="background: #cce5ff; color: #004085; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #b8daff;">{{ info }}</div>
+    {% endif %}
+
+    {% if stage == '1' %}
+        {% if current_email %}
+            <div style="background: #e9ecef; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; font-size: 15px;">
+                現在の登録メール：<b>{{ current_email }}</b>
+            </div>
+        {% endif %}
+        <div style="margin-bottom: 12px;">
+            <span style="background: #007bff; color: white; padding: 3px 12px; border-radius: 12px; font-size: 13px; font-weight: bold;">STEP 1 / 2</span>
+        </div>
+        <form method="POST" style="display: flex; flex-direction: column; gap: 12px;">
+            <input type="hidden" name="stage" value="1">
+            <label style="font-weight: bold;">新しいメールアドレス</label>
+            <input type="email" name="email" placeholder="例：your@email.com" required
+                   style="padding: 12px; border-radius: 4px; border: 1px solid #ccc; font-size: 16px;">
+            <button type="submit" style="background: #007bff; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer;">
+                確認コードを送信
+            </button>
+        </form>
+
+    {% elif stage == '2' %}
+        <div style="margin-bottom: 12px;">
+            <span style="background: #007bff; color: white; padding: 3px 12px; border-radius: 12px; font-size: 13px; font-weight: bold;">STEP 2 / 2</span>
+        </div>
+        <p style="font-size: 13px; color: #555; line-height: 1.6;">
+            メールに届いた6桁の確認コードを入力してください。<br>
+            <b>有効期限：10分間</b>
+        </p>
+        <form method="POST" style="display: flex; flex-direction: column; gap: 12px;">
+            <input type="hidden" name="stage" value="2">
+            <input type="text" name="otp" placeholder="確認コード（6桁）" required
+                   maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                   autocomplete="one-time-code"
+                   style="padding: 12px; border-radius: 4px; border: 1px solid #ccc; font-size: 22px; letter-spacing: 8px; text-align: center;">
+            <button type="submit" style="background: #28a745; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer;">
+                確認して登録する
+            </button>
+        </form>
+        <p style="margin-top: 15px; font-size: 13px;">
+            <a href="/update_email" style="color: #6c757d; text-decoration: none;">← メールアドレスの入力からやり直す</a>
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -40,9 +40,7 @@
 </div>
 
 <div id="submit-area" style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;">
-    <p>補足メモ</p>
-    <textarea id="bulk-memo" rows="3" style="width: 100%; border-radius: 5px; padding: 10px; box-sizing: border-box;"></textarea>
-    <button onclick="sendBulkData()" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px;">
+    <button onclick="sendBulkData()" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer;">
         📤 送信する
     </button>
 </div>
@@ -50,6 +48,7 @@
 <script>
     let selectedShifts = {};
     const validDates = JSON.parse('{{ valid_dates | tojson | safe }}');
+    const timeSlots = JSON.parse('{{ time_slots | tojson | safe }}');
 
     document.addEventListener('DOMContentLoaded', function() {
         const tbody = document.getElementById('shift-tbody');
@@ -69,13 +68,17 @@
             const dd = String(d.getDate()).padStart(2, '0');
             const dayStr = dayNames[d.getDay()];
             const row = document.createElement('tr');
+            const slotsHtml = timeSlots.map((slot, i) =>
+                `<span class="slot-btn" onclick="toggleSlot('${dateStr}', '${i+1}. ${slot}', this)">${slot}</span>`
+            ).join('');
             row.innerHTML = `
                 <td style="text-align: center;"><b>${mm}/${dd} (${dayStr})</b></td>
                 <td>
-                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '1. 7:30-8:30', this)">7:30-8:30</span>
-                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '2. 8:00-9:00', this)">8:00-9:00</span>
-                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '3. 15:30-16:30', this)">15:30-16:30</span>
-                    <span class="slot-btn" onclick="toggleSlot('${dateStr}', '4. 17:30-18:30', this)">17:30-18:30</span>
+                    ${slotsHtml}
+                    <div style="margin-top: 6px;">
+                        <input type="text" placeholder="備考" data-date="${dateStr}"
+                               style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; color: #555;">
+                    </div>
                 </td>
             `;
             tbody.appendChild(row);
@@ -100,11 +103,14 @@
             Swal.fire({ text: 'シフトが1つも選択されていません。', icon: 'warning', confirmButtonColor: '#343a40', confirmButtonText: 'OK' });
             return;
         }
-        const memo = document.getElementById('bulk-memo').value;
+        const memos = {};
+        document.querySelectorAll('input[data-date]').forEach(input => {
+            if (input.value.trim()) memos[input.dataset.date] = input.value.trim();
+        });
         const response = await fetch('/submit_bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ shifts: shiftsToSend, memo: memo })
+            body: JSON.stringify({ shifts: shiftsToSend, memos: memos })
         });
         if (response.ok) {
             Swal.fire({ title: '送信完了', text: 'シフトの提出が完了しました。', icon: 'success', confirmButtonColor: '#343a40', confirmButtonText: 'OK' }).then(() => {

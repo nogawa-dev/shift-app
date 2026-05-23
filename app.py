@@ -1,8 +1,12 @@
 import os
 import json
+import random
+import smtplib
 import jpholiday
 import requests
 from datetime import datetime, timedelta
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from threading import Timer
 import webbrowser
@@ -16,6 +20,11 @@ app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_key_hiro')
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 
 SESSION_TIMEOUT = 30 * 60  # 30分（秒単位）
 
@@ -53,16 +62,91 @@ def load_valid_dates():
         print(e)
     return []
 
+def load_time_slots():
+    try:
+        res = requests.get(f"{SUPABASE_URL}/rest/v1/settings?id=eq.1&select=time_slots", headers=get_headers())
+        if res.status_code == 200 and res.json():
+            raw = res.json()[0].get('time_slots')
+            if raw:
+                return json.loads(raw)
+    except Exception as e:
+        print(e)
+    return ['7:30-8:30', '8:00-9:00', '15:30-16:30', '17:30-18:30']
+
 def verify_password(stored, provided):
     # ハッシュ済みならcheck_password_hash、平文（移行前）ならそのまま比較
     if stored.startswith('pbkdf2:') or stored.startswith('scrypt:'):
         return check_password_hash(stored, provided)
     return stored == provided
 
+def send_otp_email(to_email, otp):
+    if not SMTP_USER or not SMTP_PASSWORD:
+        print(f"[EMAIL DISABLED] OTP to {to_email}: {otp}")
+        return
+    msg = MIMEMultipart()
+    msg['From'] = SMTP_USER
+    msg['To'] = to_email
+    msg['Subject'] = '【シフト管理】パスワード再設定コード'
+    body = (
+        f"パスワード再設定の確認コードをお送りします。\n\n"
+        f"確認コード：{otp}\n\n"
+        f"このコードの有効期限は10分間です。\n"
+        f"身に覚えのない場合は、このメールを無視してください。"
+    )
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.starttls()
+            smtp.login(SMTP_USER, SMTP_PASSWORD)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Email send error: {e}")
+
+
 def get_all_users():
     res = requests.get(f"{SUPABASE_URL}/rest/v1/users?select=*", headers=get_headers())
     users_data = res.json() if res.status_code == 200 else []
-    return {u['username']: {"pass": u['password'], "role": u['role'], "last_name": u.get('last_name', '')} for u in users_data}
+    return {u['username']: {"pass": u['password'], "role": u['role'], "last_name": u.get('last_name', ''), "email": u.get('email', '')} for u in users_data}
+
+
+@app.route('/update_email', methods=['GET', 'POST'])
+def update_email():
+    if 'user_name' not in session:
+        return redirect(url_for('login'))
+
+    stage = request.form.get('stage', '1') if request.method == 'POST' else '1'
+
+    if request.method == 'POST' and stage == '1':
+        new_email = request.form.get('email', '').strip()
+        if not new_email:
+            return render_template('update_email.html', stage='1', error="メールアドレスを入力してください。", user_name=get_display_name(), role=session['role'])
+        otp = str(random.randint(100000, 999999))
+        session['email_otp'] = {
+            'code': otp,
+            'email': new_email,
+            'expires': (datetime.now() + timedelta(minutes=10)).timestamp()
+        }
+        send_otp_email(new_email, otp)
+        masked = new_email[:2] + '***@' + new_email.split('@')[-1]
+        return render_template('update_email.html', stage='2', info=f"確認コードを {masked} に送信しました。", user_name=get_display_name(), role=session['role'])
+
+    if request.method == 'POST' and stage == '2':
+        otp_input = request.form.get('otp', '').strip()
+        otp_data = session.get('email_otp')
+        if not otp_data:
+            return render_template('update_email.html', stage='1', error="セッションが切れました。もう一度やり直してください。", user_name=get_display_name(), role=session['role'])
+        if datetime.now().timestamp() > otp_data['expires']:
+            session.pop('email_otp', None)
+            return render_template('update_email.html', stage='1', error="確認コードの有効期限が切れました。再度お試しください。", user_name=get_display_name(), role=session['role'])
+        if otp_data['code'] != otp_input:
+            return render_template('update_email.html', stage='2', error="確認コードが間違っています。", user_name=get_display_name(), role=session['role'])
+        requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}", headers=get_headers(), json={'email': otp_data['email']})
+        session.pop('email_otp', None)
+        return render_template('update_email.html', stage='1', success="メールアドレスを登録しました！", user_name=get_display_name(), role=session['role'])
+
+    res = requests.get(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}&select=email", headers=get_headers())
+    current_email = res.json()[0].get('email', '') if res.status_code == 200 and res.json() else ''
+    return render_template('update_email.html', stage='1', current_email=current_email, user_name=get_display_name(), role=session['role'])
 
 
 @app.route('/change_password', methods=['POST'])
@@ -101,9 +185,12 @@ def setup():
     if request.method == 'POST':
         last_name = request.form.get('last_name')
         new_password = request.form.get('password')
+        new_email = request.form.get('email', '').strip()
         update_data = {'last_name': last_name}
         if new_password:
             update_data['password'] = generate_password_hash(new_password)
+        if new_email:
+            update_data['email'] = new_email
         requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{session['user_name']}", headers=get_headers(), json=update_data)
         session['last_name'] = last_name
         return redirect(url_for('index'))
@@ -112,17 +199,43 @@ def setup():
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        last_name = request.form.get('last_name')
-        new_password = request.form.get('new_password')
-        res = requests.get(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}&last_name=eq.{last_name}&select=*", headers=get_headers())
-        if res.status_code == 200 and res.json():
-            hashed = generate_password_hash(new_password)
-            requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}", headers=get_headers(), json={'password': hashed})
-            return render_template('forgot.html', success="パスワードをリセットしました！新しいパスワードでログインしてください。")
-        return render_template('forgot.html', error="IDかカレンダー表示名が間違っています。")
-    return render_template('forgot.html')
+    stage = request.form.get('stage', '1') if request.method == 'POST' else '1'
+
+    if request.method == 'POST' and stage == '1':
+        email = request.form.get('email', '').strip()
+        otp = str(random.randint(100000, 999999))
+        session['reset_otp'] = {
+            'code': otp,
+            'email': email,
+            'expires': (datetime.now() + timedelta(minutes=10)).timestamp()
+        }
+        send_otp_email(email, otp)
+        masked = email[:2] + '***@' + email.split('@')[-1] if '@' in email else email
+        return render_template('forgot.html', stage='2',
+                               info=f"確認コードを {masked} に送信しました。")
+
+    if request.method == 'POST' and stage == '2':
+        otp_input = request.form.get('otp', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        reset_data = session.get('reset_otp')
+        if not reset_data:
+            return render_template('forgot.html', stage='1', error="セッションが切れました。もう一度やり直してください。")
+        if datetime.now().timestamp() > reset_data['expires']:
+            session.pop('reset_otp', None)
+            return render_template('forgot.html', stage='1', error="確認コードの有効期限が切れました。再度お試しください。")
+        if reset_data['code'] != otp_input:
+            return render_template('forgot.html', stage='2', error="確認コードが間違っています。")
+        res = requests.get(f"{SUPABASE_URL}/rest/v1/users?email=eq.{reset_data['email']}&select=username", headers=get_headers())
+        if not (res.status_code == 200 and res.json()):
+            session.pop('reset_otp', None)
+            return render_template('forgot.html', stage='1', error="このメールアドレスは登録されていません。")
+        username = res.json()[0]['username']
+        hashed = generate_password_hash(new_password)
+        requests.patch(f"{SUPABASE_URL}/rest/v1/users?username=eq.{username}", headers=get_headers(), json={'password': hashed})
+        session.pop('reset_otp', None)
+        return render_template('forgot.html', stage='1', success="パスワードをリセットしました！新しいパスワードでログインしてください。")
+
+    return render_template('forgot.html', stage='1')
 
 
 @app.route('/logout')
@@ -137,7 +250,7 @@ def index():
         return redirect(url_for('login'))
     if not session.get('last_name'):
         return redirect(url_for('setup'))
-    return render_template('index.html', user_name=get_display_name(), role=session['role'], valid_dates=load_valid_dates())
+    return render_template('index.html', user_name=get_display_name(), role=session['role'], valid_dates=load_valid_dates(), time_slots=load_time_slots())
 
 
 @app.route('/calendar')
@@ -206,10 +319,10 @@ def submit_bulk():
         return jsonify({"status": "error", "message": "未ログイン"}), 401
     data = request.json
     shifts_data = data.get('shifts', {})
-    memo = data.get('memo', '')
+    memos = data.get('memos', {})
     username = session['user_name']
     payload = [
-        {'username': username, 'shift_date': date, 'time_slot': slot, 'memo': memo, 'status': '未確定'}
+        {'username': username, 'shift_date': date, 'time_slot': slot, 'memo': memos.get(date, ''), 'status': '未確定'}
         for date, slots in shifts_data.items()
         for slot in slots
     ]
@@ -238,8 +351,9 @@ def register_users():
                                  users=existing_users)
         # -------------------------------
 
+        new_email = request.form.get('email', '').strip()
         res = requests.post(f"{SUPABASE_URL}/rest/v1/users", headers=get_headers(), json={
-            'username': new_username, 'password': generate_password_hash(new_password), 'role': new_role, 'last_name': ''
+            'username': new_username, 'password': generate_password_hash(new_password), 'role': new_role, 'last_name': '', 'email': new_email
         })
         users_dict = get_all_users()
         if res.status_code in [200, 201]:
@@ -252,21 +366,39 @@ def register_users():
 def shift_settings():
     if 'user_name' not in session or session.get('role') not in ['owner', 'admin']:
         return redirect(url_for('index'))
+    success = None
     if request.method == 'POST':
-        start_str = request.form.get('start_date')
-        end_str = request.form.get('end_date')
-        if start_str and end_str:
-            start_date = datetime.strptime(start_str, '%Y-%m-%d')
-            end_date = datetime.strptime(end_str, '%Y-%m-%d')
-            valid_dates = []
-            current = start_date
-            while current <= end_date:
-                if current.weekday() < 5 and not jpholiday.is_holiday(current.date()):
-                    valid_dates.append(current.strftime('%Y-%m-%d'))
-                current += timedelta(days=1)
-            requests.patch(f"{SUPABASE_URL}/rest/v1/settings?id=eq.1", headers=get_headers(), json={'valid_dates': json.dumps(valid_dates)})
-            return render_template('settings.html', success="募集期間を更新しました！", user_name=get_display_name(), role=session['role'], valid_dates=valid_dates)
-    return render_template('settings.html', user_name=get_display_name(), role=session['role'], valid_dates=load_valid_dates())
+        action = request.form.get('action', 'update_period')
+        if action == 'update_period':
+            start_str = request.form.get('start_date')
+            end_str = request.form.get('end_date')
+            if start_str and end_str:
+                start_date = datetime.strptime(start_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_str, '%Y-%m-%d')
+                valid_dates = []
+                current = start_date
+                while current <= end_date:
+                    if current.weekday() < 5 and not jpholiday.is_holiday(current.date()):
+                        valid_dates.append(current.strftime('%Y-%m-%d'))
+                    current += timedelta(days=1)
+                requests.patch(f"{SUPABASE_URL}/rest/v1/settings?id=eq.1", headers=get_headers(), json={'valid_dates': json.dumps(valid_dates)})
+                success = "募集期間を更新しました！"
+        elif action == 'add_slot':
+            new_slot = request.form.get('new_slot', '').strip()
+            if new_slot:
+                current_slots = load_time_slots()
+                if new_slot not in current_slots:
+                    current_slots.append(new_slot)
+                    requests.patch(f"{SUPABASE_URL}/rest/v1/settings?id=eq.1", headers=get_headers(), json={'time_slots': json.dumps(current_slots)})
+                success = "時間帯を追加しました！"
+        elif action == 'remove_slot':
+            slot_index = int(request.form.get('slot_index', -1))
+            current_slots = load_time_slots()
+            if 0 <= slot_index < len(current_slots):
+                current_slots.pop(slot_index)
+                requests.patch(f"{SUPABASE_URL}/rest/v1/settings?id=eq.1", headers=get_headers(), json={'time_slots': json.dumps(current_slots)})
+                success = "時間帯を削除しました！"
+    return render_template('settings.html', success=success, user_name=get_display_name(), role=session['role'], valid_dates=load_valid_dates(), time_slots=load_time_slots())
 
 
 @app.route('/shifts')
