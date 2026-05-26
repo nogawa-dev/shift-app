@@ -293,12 +293,13 @@ def api_shifts():
         shift_date = shift['shift_date']
         order_key = time_slot.split('.')[0] if '.' in time_slot else '99'
 
+        memo = shift.get('memo', '') or ''
         if status == '確定':
-            events.append({"title": event_title, "start": shift_date, "backgroundColor": "#28a745", "borderColor": "#28a745", "extendedProps": {"status": "confirmed", "id": shift_id, "orderId": order_key}})
+            events.append({"title": event_title, "start": shift_date, "backgroundColor": "#28a745", "borderColor": "#28a745", "extendedProps": {"status": "confirmed", "id": shift_id, "orderId": order_key, "memo": memo}})
         elif role in ['owner', 'admin'] and status == '未確定':
-            events.append({"title": "【未】" + event_title, "start": shift_date, "backgroundColor": "#ffc107", "borderColor": "#ffc107", "textColor": "#212529", "extendedProps": {"status": "pending", "id": shift_id, "orderId": order_key}})
+            events.append({"title": "【未】" + event_title, "start": shift_date, "backgroundColor": "#ffc107", "borderColor": "#ffc107", "textColor": "#212529", "extendedProps": {"status": "pending", "id": shift_id, "orderId": order_key, "memo": memo}})
         elif role == 'user' and shift['username'] == current_user and status == '未確定':
-            events.append({"title": "【提出中】" + display_time, "start": shift_date, "backgroundColor": "#e7f1ff", "borderColor": "#007bff", "textColor": "#007bff", "extendedProps": {"status": "my_pending", "id": shift_id, "orderId": order_key}})
+            events.append({"title": "【提出中】" + display_time, "start": shift_date, "backgroundColor": "#e7f1ff", "borderColor": "#007bff", "textColor": "#007bff", "extendedProps": {"status": "my_pending", "id": shift_id, "orderId": order_key, "memo": memo}})
 
     return jsonify(events)
 
