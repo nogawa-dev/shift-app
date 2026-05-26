@@ -304,6 +304,16 @@ def api_shifts():
     return jsonify(events)
 
 
+@app.route('/cancel_shift', methods=['POST'])
+def cancel_shift():
+    if 'user_name' not in session or session.get('role') not in ['owner', 'admin']:
+        return jsonify({"status": "error"}), 403
+    shift_id = request.json.get('shift_id')
+    if shift_id:
+        requests.patch(f"{SUPABASE_URL}/rest/v1/shifts?id=eq.{shift_id}", headers=get_headers(), json={'status': '未確定'})
+    return jsonify({"status": "success"})
+
+
 @app.route('/approve', methods=['POST'])
 def approve_shift():
     if 'user_name' not in session or session.get('role') not in ['owner', 'admin']:

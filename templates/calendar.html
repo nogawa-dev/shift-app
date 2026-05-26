@@ -126,10 +126,27 @@
                         }
                     });
                 } else if (status === 'confirmed') {
-                    Swal.fire({
-                        title: '変更不可', text: 'このシフトはすでに確定されているため、取り消しできません。個別に相談してください。',
-                        icon: 'info', confirmButtonColor: '#343a40', confirmButtonText: 'OK'
-                    });
+                    if (currentRole === 'owner' || currentRole === 'admin') {
+                        Swal.fire({
+                            title: '確定の取り消し', text: info.event.title + " の確定を取り消しますか？",
+                            icon: 'warning', showCancelButton: true,
+                            confirmButtonColor: '#dc3545', cancelButtonColor: '#6c757d',
+                            confirmButtonText: '取り消す', cancelButtonText: 'キャンセル'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                fetch('/cancel_shift', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ shift_id: shiftId })
+                                }).then(() => calendar.refetchEvents());
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '変更不可', text: 'このシフトはすでに確定されているため、取り消しできません。個別に相談してください。',
+                            icon: 'info', confirmButtonColor: '#343a40', confirmButtonText: 'OK'
+                        });
+                    }
                 }
             }
         });
